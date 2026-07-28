@@ -7,64 +7,55 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-    res.send('✅ Luas Hub Çoklu Hesap Ses & Yayın Sistemi Aktif!');
+    res.send('✅ Luas Hub Çoklu Hesap Sistemi (Özel Kulaklık ve Yayın Ayarlı) Aktif!');
 });
 
 app.listen(PORT, () => {
     console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`);
 });
 
-// ==========================================
-// RENDER ENVIRONMENT VARIABLES (TOKEN 1 - 4)
-// ==========================================
+// HESAP ÖZEL AYARLARI
 const accounts = [
     {
         name: "Hesap 1 (Yayınlı + Kulaklık Kapalı)",
         token: process.env.TOKEN_1,
         joinVoice: true,
         doStream: true,  // Yayın AÇIK (Kırmızı Rozet)
-        selfDeaf: true,  // Kulaklık KAPALI
+        selfDeaf: true,  // Sadece kulaklık KAPALI
         selfMute: false, // Ses açık
-        guildId: "1528838571975250091", 
+        guildId: "851097447568637985", 
         channelId: "1084181407330471986"
     },
     {
-        name: "Hesap 2",
+        name: "Hesap 2 (Sadece Profil)",
         token: process.env.TOKEN_2,
-        joinVoice: true,
-        doStream: false,
-        selfDeaf: true,
-        selfMute: false,
-        guildId: "1528838571975250091", 
-        channelId: "899711321543692348"
+        joinVoice: false,
+        doStream: false
     },
     {
-        name: "Hesap 3",
-        token: process.env.TOKEN_3,
+        name: "Hesap 3 (Ses ve Kulaklık AÇIK - Yayın YOK)",
+        token: process.env.TOKEN_3, 
         joinVoice: true,
-        doStream: false,
-        selfDeaf: false,
-        selfMute: false,
-        guildId: "1528838571975250091", 
+        doStream: false, // Yayın KAPALI
+        selfDeaf: false, // Kulaklık AÇIK
+        selfMute: false, // Ses AÇIK
+        guildId: "851097447568637985", 
         channelId: "899711321543692348" 
     },
     {
-        name: "Hesap 4",
-        token: process.env.TOKEN_4,
+        name: "Hesap 4 (Kulaklık Kapalı + Ses Açık)",
+        token: process.env.TOKEN_4, 
         joinVoice: true,
-        doStream: false,
-        selfDeaf: true,
-        selfMute: false,
-        guildId: "1528838571975250091", 
+        doStream: false, // Yayın KAPALI
+        selfDeaf: true,  // Kulaklık KAPALI
+        selfMute: false, // Ses AÇIK
+        guildId: "851097447568637985", 
         channelId: "995746188034842674" 
     }
 ];
 
 accounts.forEach((acc) => {
-    if (!acc.token) {
-        console.log(`⚠️ [${acc.name}] Token bulunamadı! Render Environment değişkenlerini kontrol et.`);
-        return;
-    }
+    if (!acc.token) return;
 
     const client = new Client({ checkUpdate: false });
     const streamer = new Streamer(client);
@@ -74,6 +65,8 @@ accounts.forEach((acc) => {
 
         const connectToVoice = async () => {
             try {
+                console.log(`🔊 [${acc.name}] Sese giriliyor...`);
+                
                 await streamer.joinVoice(acc.guildId, acc.channelId, {
                     self_mute: acc.selfMute,
                     self_deaf: acc.selfDeaf,
@@ -81,6 +74,7 @@ accounts.forEach((acc) => {
                 });
 
                 if (acc.doStream) {
+                    console.log(`🔴 [${acc.name}] Gerçek WebRTC Yayın köprüsü kuruluyor...`);
                     await streamer.createStream(); 
                 }
                 
@@ -98,35 +92,52 @@ accounts.forEach((acc) => {
                         }
                     });
                 }
+                
+                console.log(`🎤 [${acc.name}] Sese çivilendi!`);
+                
             } catch (err) {
+                console.log(`⚠️ [${acc.name}] Bağlanırken hata, 10 saniye sonra tekrar deneniyor.`);
                 setTimeout(connectToVoice, 10000);
             }
         };
 
-        if (acc.joinVoice) {
+        if (acc.joinVoice && acc.guildId && acc.channelId) {
             connectToVoice();
 
-            // ÖLÜMSÜZLÜK MODU (Sesten atılırlarsa geri dönerler)
+            // ÖLÜMSÜZLÜK MODU (Sesten atılırlarsa 5 saniye içinde geri dönerler)
             client.on('voiceStateUpdate', (oldState, newState) => {
                 if (oldState.member?.user.id === client.user.id) {
                     if (!newState.channelId || newState.channelId !== acc.channelId) {
+                        console.log(`⚠️ [${acc.name}] Sesten atıldı veya koptu! 5 saniye içinde geri sızılıyor...`);
                         setTimeout(connectToVoice, 5000); 
                     }
                 }
             });
         }
 
-        // Garanti Çalışan Profil Aktivitesi (Oynuyor Yazısı)
+        // Sayaç donma sorununu çözen stabil sayaç ve Rich Presence tazeleme döngüsü
+        const customStartTime = Date.now() - (5 * 24 * 60 * 60 * 1000);
+
         const updatePresence = () => {
             try {
-                client.user.setActivity('best script /luashub', { type: 'PLAYING' });
+                const status = new RichPresence(client)
+                    .setApplicationId('1531119938851569774') 
+                    .setType('PLAYING') 
+                    .setName('best script /luashub') 
+                    .setDetails('noxy x luashub') 
+                    .setState('discord.gg/luashub') 
+                    .setStartTimestamp(customStartTime) 
+                    .addButton('Discord Sunucusu', 'https://discord.gg/luashub') 
+                    .addButton('By LuasHub', 'https://discord.gg/luashub'); 
+
+                client.user.setActivity(status);
             } catch (e) {}
         };
 
         updatePresence();
-        setInterval(updatePresence, 30000); 
-        console.log(`🎮 [${acc.name}] Profil aktivitesi sabitlendi!`);
+        setInterval(updatePresence, 30000); // 30 saniyede bir profili tazeleyerek oynuyor yazısını çiviler
+        console.log(`🎮 [${acc.name}] Profil yüklendi ve sabitlendi!`);
     });
 
-    client.login(acc.token).catch(err => console.log(`⚠️ [${acc.name}] Token hatası:`, err.message));
+    client.login(acc.token).catch(err => console.log(`⚠️ [${acc.name}] Token hatalı!`, err));
 });
