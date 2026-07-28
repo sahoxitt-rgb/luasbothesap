@@ -8,8 +8,6 @@ const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => { res.send('✅ Luas Hub OwO Analiz Sistemi Aktif!'); });
 app.listen(PORT, () => { console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`); });
 
-const SENIN_ASIL_HESAP_ID = "345821033414262794"; 
-
 const accounts = [
     {
         name: "Hesap 1 (Yayınlı + OwO Analiz & All-In)",
@@ -18,14 +16,14 @@ const accounts = [
         guildId: "1528838571975250091", channelId: "1531000417469599774",
         owoFarm: true, farmChannelId: "1531000417469599774"
     },
-    { name: "Hesap 2", token: process.env.TOKEN_2, joinVoice: false, doStream: false },
+    { name: "Hesap 2 (Sadece Profil)", token: process.env.TOKEN_2, joinVoice: false, doStream: false },
     {
-        name: "Hesap 3", token: process.env.TOKEN_3, 
+        name: "Hesap 3 (Ses ve Kulaklık AÇIK)", token: process.env.TOKEN_3, 
         joinVoice: true, doStream: false, selfDeaf: false, selfMute: false, 
         guildId: "851097447568637985", channelId: "899711321543692348" 
     },
     {
-        name: "Hesap 4", token: process.env.TOKEN_4, 
+        name: "Hesap 4 (Kulaklık Kapalı)", token: process.env.TOKEN_4, 
         joinVoice: true, doStream: false, selfDeaf: true, selfMute: false, 
         guildId: "851097447568637985", channelId: "995746188034842674" 
     }
@@ -114,9 +112,7 @@ accounts.forEach((acc) => {
 
                     if (content.includes('verify') || content.includes('captcha') || content.includes('real human')) {
                         isVerifying = true; 
-                        client.users.fetch(SENIN_ASIL_HESAP_ID).then(owner => {
-                            owner.send(`🚨 **ACİL UYAN!** Hesap Captcha attı!`).catch(() => {});
-                        }).catch(() => {});
+                        console.log(`🚨 CAPTCHA GELDİ!`);
                         return;
                     }
 
@@ -133,19 +129,26 @@ accounts.forEach((acc) => {
                 };
 
                 client.on('messageCreate', async (msg) => {
-                    // SENİN YAZDIĞIN KOMUTLARI GARANTİ YAKALAYACAK KISIM
+                    // SENİN YAZDIĞIN KOMUTLARI GARANTİ YAKALAYACAK KISIM (KANAL KİLİDİ YOK!)
                     if (msg.author.id === client.user.id) {
-                        const content = msg.content.toLowerCase();
+                        const content = msg.content.toLowerCase().trim();
 
                         if (content.includes('owo analiz')) {
-                            console.log(`📊 [KOMUT YAKALANDI] owo analiz raporu gönderiliyor!`);
+                            console.log(`📊 [KOMUT] owo analiz yazıldı!`);
                             const total = totalWins + totalLosses;
                             const rate = total > 0 ? ((totalWins / total) * 100).toFixed(1) : 0;
                             const report = `📊 **OwO Analizi**\n- **El:** ${total}\n- **K/K:** ${totalWins}/${totalLosses} (%${rate})\n- **Anlık Kayıp Serisi:** ${currentLossStreak}\n- **Max Kayıp Serisi:** ${maxLossStreak}`;
-                            farmChannel.send(report).catch(() => {});
+                            
+                            // Komutu yazdığın kanala direkt cevabı yapıştırır!
+                            msg.channel.send(report).catch(() => {});
                         }
-                        else if (content.includes('owo para')) farmChannel.send("owo cash").catch(() => {});
-                        else if (content.includes('owo dur')) { isPaused = true; msg.reply("🛑 Sistem durduruldu!").catch(() => {}); }
+                        else if (content.includes('owo para')) {
+                            msg.channel.send("owo cash").catch(() => {});
+                        }
+                        else if (content.includes('owo dur')) { 
+                            isPaused = true; 
+                            msg.reply("🛑 Sistem durduruldu!").catch(() => {}); 
+                        }
                         else if (content.includes('owo devam')) {
                             isPaused = false; isVerifying = false; isWaitingResult = false;
                             msg.reply("✅ Sistem devam ediyor!").catch(() => {});
@@ -157,6 +160,7 @@ accounts.forEach((acc) => {
                         }
                     }
 
+                    // OWO Botunun sonuçlarını sadece farm kanalında okur
                     if (msg.channel.id === acc.farmChannelId) checkOwOMessage(msg.content.toLowerCase());
                 });
 
