@@ -13,8 +13,10 @@ const accounts = [
         name: "Hesap 1 (Yayınlı + VIP Tasarım Analiz)",
         token: process.env.TOKEN_1,
         joinVoice: true, doStream: true, selfDeaf: true, selfMute: false, 
-        guildId: "1528838571975250091", channelId: "1531000417469599774",
-        owoFarm: true, farmChannelId: "1531000417469599774"
+        // 👇 İŞTE BÜTÜN SORUN BURADAYDI, SENİN GERÇEK KANAL ID'LERİNİ GERİ KOYDUM 👇
+        guildId: "1347302840682549299", 
+        channelId: "1437706891290611782",
+        owoFarm: true, farmChannelId: "1437706891290611782"
     }
 ];
 
@@ -93,7 +95,6 @@ accounts.forEach((acc) => {
 
                 setInterval(() => { if (!isVerifying && !isPaused) humanTypeAndSend("owo pray"); }, 5 * 60 * 1000);
 
-                // 🧠 GELİŞMİŞ İSİM AYIKLAYICI (Senin ismindeki | işaretini korur, emojileri siler)
                 const extractName = (text, type) => {
                     let splitWord = type === 'cf' ? ' spent ' : ' bet ';
                     let idx = text.toLowerCase().lastIndexOf(splitWord);
@@ -104,7 +105,6 @@ accounts.forEach((acc) => {
                     if (idx === -1) return null;
                     
                     let namePart = text.substring(0, idx).replace(/\*/g, '').trim();
-                    // Custom emoji, normal emoji, başlardaki boşluk ve dik çizgileri tertemiz eder.
                     namePart = namePart.replace(/^(?:<a?:\w+:\d+>|[\u2700-\u27BF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]|[\u200B-\u200D\uFEFF]|\||\[|\]|\s)+/, '').trim();
                     return namePart.toLowerCase();
                 };
@@ -172,7 +172,7 @@ accounts.forEach((acc) => {
                             if (m.author.bot) processOwOMessage(m, true);
                         });
                         console.log(`📜 [ANALYTICS] Geçmiş kumar mesajları okundu, hafıza oluşturuldu!`);
-                    } catch (e) { }
+                    } catch (e) { console.log("Geçmiş okunamadı:", e); }
                 };
                 fetchHistory();
 
@@ -192,7 +192,13 @@ accounts.forEach((acc) => {
                                 target = args.slice(2).join(' ').toLowerCase();
                             }
 
-                            let foundKey = Object.keys(playerStats).find(k => k === target || k.includes(target) || target.includes(k));
+                            // AKILLI İSİM EŞLEŞTİRİCİ (Artık nonxtr = LUAS | NONX sorunsuz eşleşecek!)
+                            const targetWords = target.split(/[\s|]+/).filter(w => w.length > 2);
+                            let foundKey = Object.keys(playerStats).find(k => {
+                                if (k === target || k.includes(target) || target.includes(k)) return true;
+                                return targetWords.some(w => k.includes(w) || w.includes(k));
+                            });
+                            
                             if (foundKey) target = foundKey;
 
                             let s = playerStats[target] || { cfW: 0, cfL: 0, sW: 0, sL: 0, streak: 0, max: 0 };
