@@ -2,22 +2,62 @@ const { Client, RichPresence } = require('discord.js-selfbot-v13');
 const { Streamer } = require('@dank074/discord-video-stream');
 const express = require('express');
 
+// Render kapanmasın diye mini web sunucusu
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => { res.send('✅ Luas Hub OwO Analiz & All-In Sistem Aktif!'); });
-app.listen(PORT, () => { console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`); });
+app.get('/', (req, res) => {
+    res.send('✅ Luas Hub Çoklu Hesap & OwO Analiz Sistemi Aktif!');
+});
+
+app.listen(PORT, () => {
+    console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`);
+});
+
+// 👇 PATRONUN (SENİN) DİSCORD HESAP ID'Sİ 👇
+const SENIN_ASIL_HESAP_ID = "345821033414262794"; 
 
 // ==========================================
-// TEK HESAP VE YENİ SUNUCU/KANAL AYARLARI
+// HESAP ÖZEL AYARLARI (4 HESAP TAM KADRO)
 // ==========================================
 const accounts = [
     {
-        name: "OwO Analiz & All-In Hesap",
-        token: process.env.TOKEN_1 || "MTQyMzc2MzQ4NTk3MTcxNDIzMA." + "GtxeiM.SnVKr7qi_qyjFbSNuqgz" + "50cKv7mnc8aUzOY9mo",
-        joinVoice: true, doStream: true, selfDeaf: true, selfMute: false, 
-        guildId: "1347302840682549299", channelId: "1437706891290611782", 
-        owoFarm: true, farmChannelId: "1437706891290611782" 
+        name: "Hesap 1 (Yayınlı + OwO Analiz & All-In)",
+        token: process.env.TOKEN_1,
+        joinVoice: true,
+        doStream: true,  // Yayın AÇIK (Kırmızı Rozet)
+        selfDeaf: true,  // Sadece kulaklık KAPALI
+        selfMute: false, // Ses açık
+        guildId: "1347302840682549299", 
+        channelId: "1437706891290611782",
+        owoFarm: true,
+        farmChannelId: "1437706891290611782"
+    },
+    {
+        name: "Hesap 2 (Sadece Profil)",
+        token: process.env.TOKEN_2,
+        joinVoice: false,
+        doStream: false
+    },
+    {
+        name: "Hesap 3 (Ses ve Kulaklık AÇIK - Yayın YOK)",
+        token: process.env.TOKEN_3, 
+        joinVoice: true,
+        doStream: false, // Yayın KAPALI
+        selfDeaf: false, // Kulaklık AÇIK
+        selfMute: false, // Ses AÇIK
+        guildId: "851097447568637985", 
+        channelId: "899711321543692348" 
+    },
+    {
+        name: "Hesap 4 (Kulaklık Kapalı + Ses Açık)",
+        token: process.env.TOKEN_4, 
+        joinVoice: true,
+        doStream: false, // Yayın KAPALI
+        selfDeaf: true,  // Kulaklık KAPALI
+        selfMute: false, // Ses AÇIK
+        guildId: "851097447568637985", 
+        channelId: "995746188034842674" 
     }
 ];
 
@@ -33,35 +73,69 @@ accounts.forEach((acc) => {
         // --- SES VE YAYIN KISMI ---
         const connectToVoice = async () => {
             try {
-                await streamer.joinVoice(acc.guildId, acc.channelId, { self_mute: acc.selfMute, self_deaf: acc.selfDeaf, self_video: false });
-                if (acc.doStream) await streamer.createStream(); 
+                console.log(`🔊 [${acc.name}] Sese giriliyor...`);
+                
+                await streamer.joinVoice(acc.guildId, acc.channelId, {
+                    self_mute: acc.selfMute,
+                    self_deaf: acc.selfDeaf,
+                    self_video: false
+                });
+
+                if (acc.doStream) {
+                    console.log(`🔴 [${acc.name}] Gerçek WebRTC Yayın köprüsü kuruluyor...`);
+                    await streamer.createStream(); 
+                }
                 
                 const guild = client.guilds.cache.get(acc.guildId);
-                if (guild) guild.shard.send({ op: 4, d: { guild_id: acc.guildId, channel_id: acc.channelId, self_mute: acc.selfMute, self_deaf: acc.selfDeaf, self_video: false, self_stream: acc.doStream } });
-            } catch (err) { setTimeout(connectToVoice, 10000); }
+                if (guild) {
+                    guild.shard.send({
+                        op: 4,
+                        d: {
+                            guild_id: acc.guildId,
+                            channel_id: acc.channelId,
+                            self_mute: acc.selfMute, 
+                            self_deaf: acc.selfDeaf, 
+                            self_video: false, 
+                            self_stream: acc.doStream 
+                        }
+                    });
+                }
+                
+                console.log(`🎤 [${acc.name}] Sese çivilendi!`);
+                
+            } catch (err) {
+                console.log(`⚠️ [${acc.name}] Bağlanırken hata, 10 saniye sonra tekrar deneniyor.`);
+                setTimeout(connectToVoice, 10000);
+            }
         };
 
-        if (acc.joinVoice) {
+        if (acc.joinVoice && acc.guildId && acc.channelId) {
             connectToVoice();
+
+            // ÖLÜMSÜZLÜK MODU (Sesten atılırlarsa 5 saniye içinde geri dönerler)
             client.on('voiceStateUpdate', (oldState, newState) => {
-                if (oldState.member?.user.id === client.user.id && (!newState.channelId || newState.channelId !== acc.channelId)) {
-                    setTimeout(connectToVoice, 5000); 
+                if (oldState.member?.user.id === client.user.id) {
+                    if (!newState.channelId || newState.channelId !== acc.channelId) {
+                        console.log(`⚠️ [${acc.name}] Sesten atıldı veya koptu! 5 saniye içinde geri sızılıyor...`);
+                        setTimeout(connectToVoice, 5000); 
+                    }
                 }
             });
         }
 
-        // --- ÖZEL RİCH PRESENCE (PROFİLDEKİ OYNUYOR GÖRÜNÜMÜ) ---
+        // --- RİCH PRESENCE (ÇALIŞAN OYNUYOR GÖRÜNÜMÜ) ---
         const customStartTime = Date.now() - (5 * 24 * 60 * 60 * 1000);
+
         const updatePresence = () => {
             try {
                 const status = new RichPresence(client)
-                    .setApplicationId('1531119938851569774')
-                    .setType('PLAYING')
-                    .setName('best script /luashub')
-                    .setDetails('noxy x luashub')
-                    .setState('discord.gg/luashub')
-                    .setStartTimestamp(customStartTime)
-                    .addButton('Discord Sunucusu', 'https://discord.gg/luashub')
+                    .setApplicationId('1531119938851569774') 
+                    .setType('PLAYING') 
+                    .setName('best script /luashub') 
+                    .setDetails('noxy x luashub') 
+                    .setState('discord.gg/luashub') 
+                    .setStartTimestamp(customStartTime) 
+                    .addButton('Discord Sunucusu', 'https://discord.gg/luashub') 
                     .addButton('By LuasHub', 'https://discord.gg/luashub'); 
 
                 client.user.setActivity(status);
@@ -69,11 +143,11 @@ accounts.forEach((acc) => {
         };
 
         updatePresence();
-        setInterval(updatePresence, 25000); 
-        console.log(`🎮 [${acc.name}] Rich Presence profili sabitlendi!`);
+        setInterval(updatePresence, 30000); 
+        console.log(`🎮 [${acc.name}] Profil yüklendi ve sabitlendi!`);
 
         // ==========================================
-        // ŞANS ANALİZİ VE ALL-IN (WCF ALL) MOTORU
+        // HESAP 1 İÇİN OWOMATİK ŞANS ANALİZİ VE ALL-IN MOTORU
         // ==========================================
         if (acc.owoFarm && acc.farmChannelId) {
             const farmChannel = client.channels.cache.get(acc.farmChannelId);
@@ -116,6 +190,7 @@ accounts.forEach((acc) => {
                     }, 16000);
                 };
 
+                // Pray döngüsü
                 setInterval(() => { 
                     if (!isVerifying && !isPaused) humanTypeAndSend("owo pray"); 
                 }, 5 * 60 * 1000);
@@ -127,7 +202,7 @@ accounts.forEach((acc) => {
                     if (content.includes('verify') || content.includes('captcha') || content.includes('beep boop') || content.includes('real human')) {
                         isVerifying = true; 
                         console.log(`\n🚨🚨🚨 CAPTCHA GELDİ! SİSTEM DURDURULDU! 🚨🚨🚨\n`);
-                        client.users.fetch(client.user.id).then(owner => {
+                        client.users.fetch(SENIN_ASIL_HESAP_ID).then(owner => {
                             owner.send(`🚨 **PATRON ACİL UYAN!** Hesap Captcha attı. Sistemi durdurdum!`).catch(() => {});
                         }).catch(() => {});
                         return;
@@ -159,7 +234,6 @@ accounts.forEach((acc) => {
                 };
 
                 client.on('messageCreate', async (msg) => {
-                    // Kendi komutların
                     if (msg.author.id === client.user.id) {
                         const userCmd = msg.content.toLowerCase();
 
@@ -201,7 +275,6 @@ accounts.forEach((acc) => {
                         }
                     }
 
-                    // Farm kanalından gelen oyun sonuçlarını bot ismine bakmaksızın direkt yakala
                     if (msg.channel.id === acc.farmChannelId) {
                         checkOwOMessage(msg.content.toLowerCase());
                     }
@@ -222,5 +295,5 @@ accounts.forEach((acc) => {
         }
     });
 
-    client.login(acc.token).catch(err => console.log(`⚠️ Token hatası:`, err));
+    client.login(acc.token).catch(err => console.log(`⚠️ [${acc.name}] Token hatalı!`, err));
 });
