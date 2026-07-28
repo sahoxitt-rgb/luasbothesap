@@ -15,13 +15,12 @@ app.listen(PORT, () => {
 });
 
 // ==========================================
-// HESAP ÖZEL SES VE YAYIN AYARLARI
+// RENDER ENVIRONMENT VARIABLES (TOKEN 1 - 4)
 // ==========================================
 const accounts = [
     {
-        name: "Ana Hesap (Yayınlı + Kulaklık Kapalı)",
-        // GitHub engellemesin diye ana hesabının tokeni parçalanarak eklendi
-        token: "MTUwNzE3NzYxMzcwODQ5MjgxMA." + "GHPq2a.KkVl8-SLrlTSvImrB_" + "CR9YHmQfqSkTnqnEAEKk",
+        name: "Hesap 1 (Yayınlı + Kulaklık Kapalı)",
+        token: process.env.TOKEN_1,
         joinVoice: true,
         doStream: true,  // Yayın AÇIK (Kırmızı Rozet)
         selfDeaf: true,  // Kulaklık KAPALI
@@ -31,7 +30,7 @@ const accounts = [
     },
     {
         name: "Hesap 2",
-        token: "MTUwNzE3NzYxMzcwODQ5MjgxMA." + "GVO5q-.NJ3kszL4e-" + "VUHNbFo8NLjEWBFar1PV3fL1ZRP8",
+        token: process.env.TOKEN_2,
         joinVoice: true,
         doStream: false,
         selfDeaf: true,
@@ -41,7 +40,7 @@ const accounts = [
     },
     {
         name: "Hesap 3",
-        token: "MTQ1OTY0MzQ4ODkwNzAzODc2Mg." + "GwTY06.5Q9hpf3" + "SWIZIudBTZyVOOWFHPwqdY0TuTXrQ6k",
+        token: process.env.TOKEN_3,
         joinVoice: true,
         doStream: false,
         selfDeaf: false,
@@ -51,7 +50,7 @@ const accounts = [
     },
     {
         name: "Hesap 4",
-        token: "MTQyNjI1MTA3NDQxOT" + "AzMjE1NQ.GTwzuw.erHggwiu" + "zeZQfOrVJLH00Dh45I8lp_FH3SNejY",
+        token: process.env.TOKEN_4,
         joinVoice: true,
         doStream: false,
         selfDeaf: true,
@@ -62,7 +61,10 @@ const accounts = [
 ];
 
 accounts.forEach((acc) => {
-    if (!acc.token) return;
+    if (!acc.token) {
+        console.log(`⚠️ [${acc.name}] Token bulunamadı! Render Environment değişkenlerini kontrol et.`);
+        return;
+    }
 
     const client = new Client({ checkUpdate: false });
     const streamer = new Streamer(client);
@@ -72,8 +74,6 @@ accounts.forEach((acc) => {
 
         const connectToVoice = async () => {
             try {
-                console.log(`🔊 [${acc.name}] Sese giriliyor...`);
-                
                 await streamer.joinVoice(acc.guildId, acc.channelId, {
                     self_mute: acc.selfMute,
                     self_deaf: acc.selfDeaf,
@@ -81,7 +81,6 @@ accounts.forEach((acc) => {
                 });
 
                 if (acc.doStream) {
-                    console.log(`🔴 [${acc.name}] Gerçek WebRTC Yayın köprüsü kuruluyor...`);
                     await streamer.createStream(); 
                 }
                 
@@ -99,11 +98,7 @@ accounts.forEach((acc) => {
                         }
                     });
                 }
-                
-                console.log(`🎤 [${acc.name}] Sese çivilendi!`);
-                
             } catch (err) {
-                console.log(`⚠️ [${acc.name}] Bağlanırken hata, 10 saniye sonra tekrar deneniyor.`);
                 setTimeout(connectToVoice, 10000);
             }
         };
@@ -111,40 +106,27 @@ accounts.forEach((acc) => {
         if (acc.joinVoice) {
             connectToVoice();
 
-            // ÖLÜMSÜZLÜK MODU (Sesten atılırlarsa 5 saniye içinde geri dönerler)
+            // ÖLÜMSÜZLÜK MODU (Sesten atılırlarsa geri dönerler)
             client.on('voiceStateUpdate', (oldState, newState) => {
                 if (oldState.member?.user.id === client.user.id) {
                     if (!newState.channelId || newState.channelId !== acc.channelId) {
-                        console.log(`⚠️ [${acc.name}] Sesten atıldı veya koptu! 5 saniye içinde geri sızılıyor...`);
                         setTimeout(connectToVoice, 5000); 
                     }
                 }
             });
         }
 
-        // Sabit ve Tazelenen Rich Presence (Oynuyor / Profil Yazısı)
-        const customStartTime = Date.now() - (5 * 24 * 60 * 60 * 1000);
-
+        // Garanti Çalışan Profil Aktivitesi (Oynuyor Yazısı)
         const updatePresence = () => {
             try {
-                const status = new RichPresence(client)
-                    .setApplicationId('1531119938851569774') 
-                    .setType('PLAYING') 
-                    .setName('best script /luashub') 
-                    .setDetails('noxy x luashub') 
-                    .setState('discord.gg/luashub') 
-                    .setStartTimestamp(customStartTime) 
-                    .addButton('Discord Sunucusu', 'https://discord.gg/luashub') 
-                    .addButton('By LuasHub', 'https://discord.gg/luashub'); 
-
-                client.user.setActivity(status);
+                client.user.setActivity('best script /luashub', { type: 'PLAYING' });
             } catch (e) {}
         };
 
         updatePresence();
-        setInterval(updatePresence, 25000); // Her 25 saniyede bir profili tazeleyip ekrandan gitmesini engeller
-        console.log(`🎮 [${acc.name}] Profil aktif ve sabitlendi!`);
+        setInterval(updatePresence, 30000); 
+        console.log(`🎮 [${acc.name}] Profil aktivitesi sabitlendi!`);
     });
 
-    client.login(acc.token).catch(err => console.log(`⚠️ [${acc.name}] Token hatalı!`, err));
+    client.login(acc.token).catch(err => console.log(`⚠️ [${acc.name}] Token hatası:`, err.message));
 });
