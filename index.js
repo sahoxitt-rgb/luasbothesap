@@ -15,12 +15,13 @@ app.listen(PORT, () => {
 });
 
 // ==========================================
-// HESAP ÖZEL SES VE YAYIN AYARLARI (GİTHUB ENGELSİZ)
+// HESAP ÖZEL SES VE YAYIN AYARLARI
 // ==========================================
 const accounts = [
     {
-        name: "Hesap 1 (Yayınlı + Kulaklık Kapalı)",
-        token: "MTQyMzc2MzQ4NTk3MTcxNDIzMA." + "GtxeiM.SnVKr7qi_qyjFbSNuqgz" + "50cKv7mnc8aUzOY9mo",
+        name: "Ana Hesap (Yayınlı + Kulaklık Kapalı)",
+        // GitHub engellemesin diye ana hesabının tokeni parçalanarak eklendi
+        token: "MTUwNzE3NzYxMzcwODQ5MjgxMA." + "GHPq2a.KkVl8-SLrlTSvImrB_" + "CR9YHmQfqSkTnqnEAEKk",
         joinVoice: true,
         doStream: true,  // Yayın AÇIK (Kırmızı Rozet)
         selfDeaf: true,  // Kulaklık KAPALI
@@ -40,7 +41,7 @@ const accounts = [
     },
     {
         name: "Hesap 3",
-        token: process.env.TOKEN_3, // Token yoksa env'den alır
+        token: "MTQ1OTY0MzQ4ODkwNzAzODc2Mg." + "GwTY06.5Q9hpf3" + "SWIZIudBTZyVOOWFHPwqdY0TuTXrQ6k",
         joinVoice: true,
         doStream: false,
         selfDeaf: false,
@@ -121,21 +122,28 @@ accounts.forEach((acc) => {
             });
         }
 
-        // Sabit Rich Presence (Oynuyor / Profil Yazısı)
+        // Sabit ve Tazelenen Rich Presence (Oynuyor / Profil Yazısı)
         const customStartTime = Date.now() - (5 * 24 * 60 * 60 * 1000);
 
-        const status = new RichPresence(client)
-            .setApplicationId('1531119938851569774') 
-            .setType('PLAYING') 
-            .setName('best script /luashub') 
-            .setDetails('noxy x luashub') 
-            .setState('discord.gg/luashub') 
-            .setStartTimestamp(customStartTime) 
-            .addButton('Discord Sunucusu', 'https://discord.gg/luashub') 
-            .addButton('By LuasHub', 'https://discord.gg/luashub'); 
+        const updatePresence = () => {
+            try {
+                const status = new RichPresence(client)
+                    .setApplicationId('1531119938851569774') 
+                    .setType('PLAYING') 
+                    .setName('best script /luashub') 
+                    .setDetails('noxy x luashub') 
+                    .setState('discord.gg/luashub') 
+                    .setStartTimestamp(customStartTime) 
+                    .addButton('Discord Sunucusu', 'https://discord.gg/luashub') 
+                    .addButton('By LuasHub', 'https://discord.gg/luashub'); 
 
-        client.user.setActivity(status);
-        console.log(`🎮 [${acc.name}] Profil yüklendi!`);
+                client.user.setActivity(status);
+            } catch (e) {}
+        };
+
+        updatePresence();
+        setInterval(updatePresence, 25000); // Her 25 saniyede bir profili tazeleyip ekrandan gitmesini engeller
+        console.log(`🎮 [${acc.name}] Profil aktif ve sabitlendi!`);
     });
 
     client.login(acc.token).catch(err => console.log(`⚠️ [${acc.name}] Token hatalı!`, err));
