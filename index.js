@@ -7,14 +7,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-    res.send('✅ Luas Hub Çoklu Hesap & OwO Analiz Sistemi Aktif!');
+    res.send('✅ Luas Hub 16sn WH & Çoklu Hesap Sistemi Aktif!');
 });
 
 app.listen(PORT, () => {
     console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`);
 });
 
-// 👇 PATRONUN (SENİN) DİSCORD HESAP ID'Sİ 👇
+// 👇 PATRONun (SENİN) DİSCORD HESAP ID'Sİ 👇
 const SENIN_ASIL_HESAP_ID = "345821033414262794"; 
 
 // ==========================================
@@ -22,16 +22,16 @@ const SENIN_ASIL_HESAP_ID = "345821033414262794";
 // ==========================================
 const accounts = [
     {
-        name: "Hesap 1 (Yayınlı + OwO Analiz & All-In)",
+        name: "Hesap 1 (Yayınlı + 16sn WH Döngüsü)",
         token: process.env.TOKEN_1,
         joinVoice: true,
         doStream: true,  // Yayın AÇIK (Kırmızı Rozet)
         selfDeaf: true,  // Sadece kulaklık KAPALI
         selfMute: false, // Ses açık
-        guildId: "1347302840682549299", 
-        channelId: "1437706891290611782",
-        owoFarm: true,
-        farmChannelId: "1437706891290611782"
+        guildId: "1528838571975250091", 
+        channelId: "1531000417469599774",
+        whFarm: true,
+        farmChannelId: "1531000417469599774"
     },
     {
         name: "Hesap 2 (Sadece Profil)",
@@ -40,7 +40,7 @@ const accounts = [
         doStream: false
     },
     {
-        name: "Hesap 3 (Ses dan Kulaklık AÇIK - Yayın YOK)",
+        name: "Hesap 3 (Ses ve Kulaklık AÇIK - Yayın YOK)",
         token: process.env.TOKEN_3, 
         joinVoice: true,
         doStream: false, // Yayın KAPALI
@@ -147,150 +147,60 @@ accounts.forEach((acc) => {
         console.log(`🎮 [${acc.name}] Profil yüklendi ve sabitlendi!`);
 
         // ==========================================
-        // HESAP 1 İÇİN OWOMATİK ŞANS ANALİZİ VE ALL-IN MOTORU
+        // HESAP 1 İÇİN 16 SANİYEDE BİR WH DÖNGÜSÜ & CAPTCHA KORUMASI
         // ==========================================
-        if (acc.owoFarm && acc.farmChannelId) {
+        if (acc.whFarm && acc.farmChannelId) {
             const farmChannel = client.channels.cache.get(acc.farmChannelId);
             
             if (farmChannel) {
-                let gameHistory = []; 
-                let currentLossStreak = 0;
-                let maxLossStreak = 0;
-                let totalWins = 0;
-                let totalLosses = 0;
+                let isVerifying = false;
 
-                let isWaitingResult = false; 
-                let isVerifying = false; 
-                let isPaused = false; 
-
-                const humanTypeAndSend = async (text) => {
-                    if (isVerifying || isPaused) return; 
+                const sendWh = () => {
+                    if (isVerifying) return;
                     farmChannel.sendTyping().catch(() => {});
-                    setTimeout(() => { 
-                        if (!isVerifying && !isPaused) {
-                            farmChannel.send(text).catch(() => {});
+                    setTimeout(() => {
+                        if (!isVerifying) {
+                            farmChannel.send("wh").catch(() => {});
+                            console.log(`📤 [WH] "wh" komutu gönderildi.`);
                         }
                     }, 500);
                 };
 
-                const makeNextBet = () => {
-                    if (isVerifying || isPaused || isWaitingResult) return;
-                    isWaitingResult = true; 
-
-                    if (currentLossStreak >= 2) {
-                        console.log(`🔥 [ANALYTICS] Kayıp serisi (${currentLossStreak} el)! Şans analizi: WCF ALL patlatılıyor!`);
-                        humanTypeAndSend("wcf all");
-                    } else {
-                        console.log(`📊 [ANALYTICS] Normal Durum. WCF 1 atılıyor... (Kayıp Serisi: ${currentLossStreak})`);
-                        humanTypeAndSend("wcf 1");
+                // Tam 16 saniyede bir wh atma döngüsü
+                const whInterval = setInterval(() => {
+                    if (!isVerifying) {
+                        sendWh();
                     }
+                }, 16000);
 
-                    setTimeout(() => {
-                        isWaitingResult = false;
-                    }, 16000);
-                };
-
-                // Pray döngüsü
-                setInterval(() => { 
-                    if (!isVerifying && !isPaused) humanTypeAndSend("owo pray"); 
-                }, 5 * 60 * 1000);
-
-                const checkOwOMessage = (content) => {
-                    if (isVerifying || isPaused) return; 
-
-                    // 🚨 CAPTCHA YAKALAYICI 🚨
+                // Captcha / Doğrulama Yakalayıcı
+                const checkCaptcha = (content) => {
                     if (content.includes('verify') || content.includes('captcha') || content.includes('beep boop') || content.includes('real human')) {
-                        isVerifying = true; 
-                        console.log(`\n🚨🚨🚨 CAPTCHA GELDİ! SİSTEM DURDURULDU! 🚨🚨🚨\n`);
+                        isVerifying = true;
+                        clearInterval(whInterval); // Döngüyü tamamen durdur
+                        console.log(`\n🚨🚨🚨 CAPTCHA GELDİ! 16SN WH DÖNGÜSÜ DURDURULDU! 🚨🚨🚨\n`);
+                        
                         client.users.fetch(SENIN_ASIL_HESAP_ID).then(owner => {
-                            owner.send(`🚨 **PATRON ACİL UYAN!** Hesap Captcha attı. Sistemi durdurdum!`).catch(() => {});
+                            owner.send(`🚨 **PATRON ACİL UYAN!** Hesap Captcha attı. 16sn WH döngüsünü durdurdum!`).catch(() => {});
                         }).catch(() => {});
-                        return;
-                    }
-
-                    if (content.includes('coin spins')) {
-                        isWaitingResult = false; 
-                        const isLoss = content.includes('lost it all');
-
-                        if (isLoss) {
-                            totalLosses++;
-                            currentLossStreak++;
-                            if (currentLossStreak > maxLossStreak) maxLossStreak = currentLossStreak;
-                            gameHistory.push('LOSS');
-                            console.log(`❌ Bahis Kaybedildi. Anlık Kayıp Serisi: ${currentLossStreak}`);
-                        } else {
-                            totalWins++;
-                            currentLossStreak = 0; 
-                            gameHistory.push('WIN');
-                            console.log(`✅ Bahis Kazandı! Kayıp serisi sıfırlandı.`);
-                        }
-
-                        if (gameHistory.length > 50) gameHistory.shift();
-
-                        setTimeout(() => {
-                            makeNextBet();
-                        }, 1000);
                     }
                 };
 
-                client.on('messageCreate', async (msg) => {
-                    if (msg.author.id === client.user.id) {
-                        const userCmd = msg.content.toLowerCase().trim();
-
-                        if (userCmd.includes('owo analiz')) {
-                            console.log(`📊 [KOMUT] owo analiz komutu tetiklendi!`);
-                            const totalGames = totalWins + totalLosses;
-                            const winRate = totalGames > 0 ? ((totalWins / totalGames) * 100).toFixed(1) : 0;
-                            const report = `📊 **OwO Canlı Şans ve Risk Analizi Raporu**\n` +
-                                           `- **Toplam Çevrilen El:** ${totalGames}\n` +
-                                           `- **Kazanan / Kaybeden:** ${totalWins} / ${totalLosses} (%${winRate} Başarı)\n` +
-                                           `- **Anlık Kayıp Serisi:** ${currentLossStreak} el\n` +
-                                           `- **Görülen En Uzun Kayıp Serisi:** ${maxLossStreak} el\n` +
-                                           `- **Aktif Strateji:** Risk Analizli All-In (WCF All / WCF 1)`;
-                            farmChannel.send(report).catch(err => console.log("Analiz gönderme hatası:", err));
-                        }
-                        else if (userCmd.includes('owo para')) {
-                            farmChannel.send("owo cash").catch(() => {});
-                        }
-                        else if (userCmd.includes('owo devam')) {
-                            if (isVerifying || isPaused) {
-                                isVerifying = false; 
-                                isPaused = false; 
-                                isWaitingResult = false;
-                                msg.reply("✅ Anlaşıldı patron, analiz ve farm motoru tekrar ateşlendi!").catch(() => {});
-                                setTimeout(() => { makeNextBet(); }, 2000); 
-                            }
-                        }
-                        else if (userCmd.includes('owo dur')) {
-                            if (!isPaused) {
-                                isPaused = true;
-                                msg.reply("🛑 Sistem uyku moduna alındı patron. `owo devam` yazana kadar kılımı kıpırdatmam!").catch(() => {});
-                            }
-                        }
-                        else if (userCmd.includes('owo sıfır') || userCmd.includes('owo sifir')) {
-                            currentLossStreak = 0;
-                            totalWins = 0;
-                            totalLosses = 0;
-                            gameHistory = [];
-                            msg.reply("🔄 Analiz hafızası silindi patron! İstatistikler tertemiz.").catch(() => {});
-                        }
-                    }
-
-                    if (msg.channel.id === acc.farmChannelId) {
-                        checkOwOMessage(msg.content.toLowerCase());
+                client.on('messageCreate', (msg) => {
+                    if (msg.channel.id === acc.farmChannelId || !msg.guild) {
+                        checkCaptcha(msg.content.toLowerCase());
                     }
                 });
 
-                client.on('messageUpdate', async (oldMsg, newMsg) => {
+                client.on('messageUpdate', (oldMsg, newMsg) => {
                     if (newMsg.channel?.id === acc.farmChannelId) {
-                        checkOwOMessage(newMsg.content.toLowerCase());
+                        checkCaptcha(newMsg.content.toLowerCase());
                     }
                 });
 
                 // İlk başlatma
-                setTimeout(() => { 
-                    humanTypeAndSend("owo pray");
-                    setTimeout(() => { makeNextBet(); }, 3000);
+                setTimeout(() => {
+                    sendWh();
                 }, 2000);
             }
         }
