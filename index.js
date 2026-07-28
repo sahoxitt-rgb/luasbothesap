@@ -5,7 +5,7 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => { res.send('✅ Luas Hub VIP Tasarımlı Analiz Aktif!'); });
+app.get('/', (req, res) => { res.send('✅ Luas Hub Kusursuz Slot & CF Analiz Aktif!'); });
 app.listen(PORT, () => { console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`); });
 
 const accounts = [
@@ -64,7 +64,7 @@ accounts.forEach((acc) => {
         updatePresence(); setInterval(updatePresence, 30000); 
 
         // ==========================================
-        // ZAMAN MAKİNELİ & KUSURSUZ SLOT ANALİZ MOTORU
+        // KUSURSUZ İSİM AYIKLAYICI VE ANALİZ MOTORU
         // ==========================================
         if (acc.owoFarm && acc.farmChannelId) {
             const farmChannel = client.channels.cache.get(acc.farmChannelId);
@@ -93,6 +93,22 @@ accounts.forEach((acc) => {
 
                 setInterval(() => { if (!isVerifying && !isPaused) humanTypeAndSend("owo pray"); }, 5 * 60 * 1000);
 
+                // 🧠 GELİŞMİŞ İSİM AYIKLAYICI (Senin ismindeki | işaretini korur, emojileri siler)
+                const extractName = (text, type) => {
+                    let splitWord = type === 'cf' ? ' spent ' : ' bet ';
+                    let idx = text.toLowerCase().lastIndexOf(splitWord);
+                    if (idx === -1 && type === 'cf') {
+                        splitWord = ' bet ';
+                        idx = text.toLowerCase().lastIndexOf(splitWord);
+                    }
+                    if (idx === -1) return null;
+                    
+                    let namePart = text.substring(0, idx).replace(/\*/g, '').trim();
+                    // Custom emoji, normal emoji, başlardaki boşluk ve dik çizgileri tertemiz eder.
+                    namePart = namePart.replace(/^(?:<a?:\w+:\d+>|[\u2700-\u27BF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]|[\u200B-\u200D\uFEFF]|\||\[|\]|\s)+/, '').trim();
+                    return namePart.toLowerCase();
+                };
+
                 const processOwOMessage = (msg, isHistory = false) => {
                     if (isVerifying && !isHistory) return; 
                     const content = msg.content.toLowerCase();
@@ -108,24 +124,14 @@ accounts.forEach((acc) => {
                         let player = null;
                         let isLoss = false;
 
-                        // 🪙 Coinflip İsim Çözücü
                         if (content.includes('coin spins')) {
-                            const match = rawContent.match(/\*\*(.*?)\*\*/);
-                            if (match) player = match[1].trim().toLowerCase();
-                            isLoss = content.includes('lost it all');
+                            player = extractName(rawContent, 'cf');
+                            isLoss = content.includes('lost it all') || content.includes('lost');
                         } 
-                        // 🎰 SLOT İSİM ÇÖZÜCÜ (SENİN İSMİNDEKİ "|" İŞARETİNE ÖZEL DÜZELTİLDİ!)
                         else if (content.includes('___slots___')) {
                             const lines = rawContent.split('\n');
                             if (lines.length > 1) {
-                                const betLine = lines[1];
-                                const betIndex = betLine.toLowerCase().lastIndexOf(' bet ');
-                                
-                                if (betIndex !== -1) {
-                                    let leftPart = betLine.substring(0, betIndex).trim(); // "🍒|🍒|💖  LUAS | NOXY"
-                                    // Emojileri ve peşindeki boşluğu kesip direkt saf ismine ulaşır
-                                    player = leftPart.replace(/^[^\s]+\s+/, '').trim().toLowerCase(); 
-                                }
+                                player = extractName(lines[1], 'slot');
                             }
                             isLoss = content.includes('won nothing') || content.includes('lost');
                         }
@@ -158,6 +164,7 @@ accounts.forEach((acc) => {
                     }
                 };
 
+                // ZAMAN MAKİNESİ
                 const fetchHistory = async () => {
                     try {
                         const messages = await farmChannel.messages.fetch({ limit: 50 });
@@ -192,7 +199,6 @@ accounts.forEach((acc) => {
                             let cfT = s.cfW + s.cfL; let cfR = cfT > 0 ? ((s.cfW / cfT) * 100).toFixed(1) : 0;
                             let sT = s.sW + s.sL; let sR = sT > 0 ? ((s.sW / sT) * 100).toFixed(1) : 0;
 
-                            // 👑 ADAM AKILLI VIP TASARIM (BLOCKQUOTE)
                             const report = `> 📊 **ŞANS & RİSK RAPORU**\n` +
                                            `> 👤 **Oyuncu:** \`${target.toUpperCase()}\`\n> \n` +
                                            `> 🪙 **Coinflip (CF):** \`${s.cfW} Kazanma\` / \`${s.cfL} Kaybetme\` **(%${cfR})**\n` +
