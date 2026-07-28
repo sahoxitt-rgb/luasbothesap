@@ -40,7 +40,7 @@ const accounts = [
         doStream: false
     },
     {
-        name: "Hesap 3 (Ses ve Kulaklık AÇIK - Yayın YOK)",
+        name: "Hesap 3 (Ses dan Kulaklık AÇIK - Yayın YOK)",
         token: process.env.TOKEN_3, 
         joinVoice: true,
         doStream: false, // Yayın KAPALI
@@ -235,9 +235,10 @@ accounts.forEach((acc) => {
 
                 client.on('messageCreate', async (msg) => {
                     if (msg.author.id === client.user.id) {
-                        const userCmd = msg.content.toLowerCase();
+                        const userCmd = msg.content.toLowerCase().trim();
 
-                        if (userCmd === 'owo analiz') {
+                        if (userCmd.includes('owo analiz')) {
+                            console.log(`📊 [KOMUT] owo analiz komutu tetiklendi!`);
                             const totalGames = totalWins + totalLosses;
                             const winRate = totalGames > 0 ? ((totalWins / totalGames) * 100).toFixed(1) : 0;
                             const report = `📊 **OwO Canlı Şans ve Risk Analizi Raporu**\n` +
@@ -246,12 +247,12 @@ accounts.forEach((acc) => {
                                            `- **Anlık Kayıp Serisi:** ${currentLossStreak} el\n` +
                                            `- **Görülen En Uzun Kayıp Serisi:** ${maxLossStreak} el\n` +
                                            `- **Aktif Strateji:** Risk Analizli All-In (WCF All / WCF 1)`;
-                            msg.channel.send(report).catch(() => {});
+                            farmChannel.send(report).catch(err => console.log("Analiz gönderme hatası:", err));
                         }
-                        else if (userCmd === 'owo para') {
-                            msg.channel.send("owo cash").catch(() => {});
+                        else if (userCmd.includes('owo para')) {
+                            farmChannel.send("owo cash").catch(() => {});
                         }
-                        else if (userCmd === 'owo devam') {
+                        else if (userCmd.includes('owo devam')) {
                             if (isVerifying || isPaused) {
                                 isVerifying = false; 
                                 isPaused = false; 
@@ -260,13 +261,13 @@ accounts.forEach((acc) => {
                                 setTimeout(() => { makeNextBet(); }, 2000); 
                             }
                         }
-                        else if (userCmd === 'owo dur') {
+                        else if (userCmd.includes('owo dur')) {
                             if (!isPaused) {
                                 isPaused = true;
                                 msg.reply("🛑 Sistem uyku moduna alındı patron. `owo devam` yazana kadar kılımı kıpırdatmam!").catch(() => {});
                             }
                         }
-                        else if (userCmd === 'owo sıfır' || userCmd === 'owo sifir') {
+                        else if (userCmd.includes('owo sıfır') || userCmd.includes('owo sifir')) {
                             currentLossStreak = 0;
                             totalWins = 0;
                             totalLosses = 0;
