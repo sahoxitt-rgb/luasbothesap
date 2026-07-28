@@ -1,4 +1,4 @@
-const { Client, RichPresence } = require('discord.js-selfbot-v13');
+const { Client } = require('discord.js-selfbot-v13');
 const { Streamer } = require('@dank074/discord-video-stream');
 const express = require('express');
 
@@ -53,27 +53,16 @@ accounts.forEach((acc) => {
             });
         }
 
-        // --- PROFİL AKTİVİTESİ ---
-        const customStartTime = Date.now() - (5 * 24 * 60 * 60 * 1000);
-        const setMyPresence = () => {
+        // --- GARANTİ ÇALIŞAN PROFİL AKTİVİTESİ (OYNUYOR YAZISI) ---
+        const updatePresence = () => {
             try {
-                const status = new RichPresence(client)
-                    .setApplicationId('1531119938851569774')
-                    .setType('PLAYING')
-                    .setName('best script /luashub')
-                    .setDetails('noxy x luashub')
-                    .setState('discord.gg/luashub')
-                    .setStartTimestamp(customStartTime)
-                    .addButton('Discord Sunucusu', 'https://discord.gg/luashub')
-                    .addButton('By LuasHub', 'https://discord.gg/luashub'); 
-
-                client.user.setActivity(status);
+                client.user.setActivity('best script /luashub', { type: 'PLAYING' });
             } catch (e) {}
         };
 
-        setMyPresence();
-        setInterval(setMyPresence, 20000); 
-        console.log(`🎮 [${acc.name}] Profil aktivitesi çivilendi!`);
+        updatePresence();
+        setInterval(updatePresence, 30000); 
+        console.log(`🎮 [${acc.name}] Profil aktivitesi sabitlendi!`);
 
         // ==========================================
         // ŞANS ANALİZİ VE ALL-IN (WCF ALL) MOTORU
@@ -207,12 +196,16 @@ accounts.forEach((acc) => {
                         }
                     }
 
-                    if (!msg.guild && msg.author.id === '408785106942164992') checkOwOMessage(msg.content.toLowerCase());
-                    if (msg.channel.id === acc.farmChannelId && msg.author.id === '408785106942164992') checkOwOMessage(msg.content.toLowerCase());
+                    // Hangi bot olursa olsun farm kanalından veya DM'den gelen oyun sonuçlarını yakalar
+                    if (msg.author.bot && (msg.channel.id === acc.farmChannelId || !msg.guild)) {
+                        checkOwOMessage(msg.content.toLowerCase());
+                    }
                 });
 
                 client.on('messageUpdate', async (oldMsg, newMsg) => {
-                    if (newMsg.channel.id === acc.farmChannelId && newMsg.author.id === '408785106942164992') checkOwOMessage(newMsg.content.toLowerCase());
+                    if (newMsg.author?.bot && newMsg.channel.id === acc.farmChannelId) {
+                        checkOwOMessage(newMsg.content.toLowerCase());
+                    }
                 });
 
                 // İlk başlatma
