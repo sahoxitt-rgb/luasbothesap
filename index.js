@@ -12,7 +12,7 @@ app.listen(PORT, () => { console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!
 const SENIN_ASIL_HESAP_ID = "345821033414262794"; 
 
 // ==========================================
-// YENİ SUNUCU VE KANAL İLE TEK HESAP AYARLARI
+// TEK HESAP VE YENİ SUNUCU/KANAL AYARLARI
 // ==========================================
 const accounts = [
     {
@@ -82,7 +82,6 @@ accounts.forEach((acc) => {
             const farmChannel = client.channels.cache.get(acc.farmChannelId);
             
             if (farmChannel) {
-                // Analiz İstatistik Değişkenleri
                 let gameHistory = []; 
                 let currentLossStreak = 0;
                 let maxLossStreak = 0;
@@ -107,7 +106,6 @@ accounts.forEach((acc) => {
                     if (isVerifying || isPaused || isWaitingResult) return;
                     isWaitingResult = true; 
 
-                    // ANALİZ BAZLI ALL-IN: Kayıp serisi 2'ye ulaştığında şans analizi "tüm parayı bas" emri verir!
                     if (currentLossStreak >= 2) {
                         console.log(`🔥 [ANALYTICS] Kayıp serisi yakalandı (${currentLossStreak} el)! Şans analizi pozitif: WCF ALL patlatılıyor!`);
                         humanTypeAndSend("wcf all");
@@ -116,7 +114,6 @@ accounts.forEach((acc) => {
                         humanTypeAndSend("wcf 1");
                     }
 
-                    // 16 saniye cooldowndan kaçış kilidi
                     setTimeout(() => {
                         isWaitingResult = false;
                     }, 16000);
@@ -151,7 +148,7 @@ accounts.forEach((acc) => {
                             console.log(`❌ Bahis Kaybedildi. Anlık Kayıp Serisi: ${currentLossStreak}`);
                         } else {
                             totalWins++;
-                            currentLossStreak = 0; // Seriyi sıfırla
+                            currentLossStreak = 0; 
                             gameHistory.push('WIN');
                             console.log(`✅ Bahis Kazandı! Kayıp serisi sıfırlandı.`);
                         }
@@ -178,10 +175,10 @@ accounts.forEach((acc) => {
                                            `- **Anlık Kayıp Serisi:** ${currentLossStreak} el\n` +
                                            `- **Görülen En Uzun Kayıp Serisi:** ${maxLossStreak} el\n` +
                                            `- **Aktif Strateji:** Risk Analizli All-In (WCF All / WCF 1)`;
-                            farmChannel.send(report).catch(() => {});
+                            msg.channel.send(report).catch(() => {});
                         }
                         else if (userCmd === 'owo para') {
-                            farmChannel.send("owo cash").catch(() => {});
+                            msg.channel.send("owo cash").catch(() => {});
                         }
                         else if (userCmd === 'owo devam') {
                             if (isVerifying || isPaused) {
