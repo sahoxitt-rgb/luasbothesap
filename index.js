@@ -5,12 +5,12 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => { res.send('✅ Luas Hub Gelişmiş Analiz & Hayalet Modu Aktif!'); });
+app.get('/', (req, res) => { res.send('✅ Luas Hub Gelişmiş Zaman Makineli Analiz Aktif!'); });
 app.listen(PORT, () => { console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`); });
 
 const accounts = [
     {
-        name: "Hesap 1 (Yayınlı + Hayalet Analizci)",
+        name: "Hesap 1 (Yayınlı + Zaman Makineli Analiz)",
         token: process.env.TOKEN_1,
         joinVoice: true, doStream: true, selfDeaf: true, selfMute: false, 
         guildId: "1528838571975250091", channelId: "1531000417469599774",
@@ -64,20 +64,17 @@ accounts.forEach((acc) => {
         updatePresence(); setInterval(updatePresence, 30000); 
 
         // ==========================================
-        // KÜRESEL İSTATİSTİK VE HAYALET ANALİZ MOTORU
+        // ZAMAN MAKİNELİ KÜRESEL ANALİZ MOTORU
         // ==========================================
         if (acc.owoFarm && acc.farmChannelId) {
             const farmChannel = client.channels.cache.get(acc.farmChannelId);
             
             if (farmChannel) {
-                // Herkesin CF ve SLOT verilerini burada tutuyoruz
                 let playerStats = {}; 
-                
-                // Botun kendi otomatik oynaması için gerekenler
-                let isPaused = true; // Bot başta KAPALI başlar!
+                let isPaused = true; 
                 let isWaitingResult = false; 
                 let isVerifying = false; 
-                let autoBotStreak = 0; // Sadece botun all-in kararı için
+                let autoBotStreak = 0; 
 
                 const humanTypeAndSend = async (text) => {
                     if (isVerifying || isPaused) return; 
@@ -90,46 +87,49 @@ accounts.forEach((acc) => {
                 const makeNextBet = () => {
                     if (isVerifying || isPaused || isWaitingResult) return;
                     isWaitingResult = true; 
-
-                    if (autoBotStreak >= 2) {
-                        humanTypeAndSend("wcf all");
-                    } else {
-                        humanTypeAndSend("wcf 1");
-                    }
+                    if (autoBotStreak >= 2) humanTypeAndSend("wcf all");
+                    else humanTypeAndSend("wcf 1");
                 };
 
                 setInterval(() => { if (!isVerifying && !isPaused) humanTypeAndSend("owo pray"); }, 5 * 60 * 1000);
 
-                const checkOwOMessage = (msg) => {
-                    if (isVerifying) return; 
+                // Ortak Veri İşleme Fonksiyonu (Hem geçmişi hem canlıyı okur)
+                const processOwOMessage = (msg, isHistory = false) => {
+                    if (isVerifying && !isHistory) return; 
                     const content = msg.content.toLowerCase();
-                    const rawContent = msg.content; // İsimleri doğru çekmek için orijinal metin
+                    const rawContent = msg.content; 
 
-                    if (content.includes('verify') || content.includes('captcha') || content.includes('real human')) {
+                    if (!isHistory && (content.includes('verify') || content.includes('captcha') || content.includes('real human'))) {
                         isVerifying = true; 
                         isPaused = true;
                         return;
                     }
 
-                    // --- OWO MESAJINDAN KİMİN OYNADIĞINI VE NE OYNADIĞINI BULMA ---
                     if (content.includes('coin spins') || content.includes('___slots___')) {
                         let player = null;
                         let isLoss = false;
 
-                        // Coinflip ise
+                        // Coinflip İsim Çözücü
                         if (content.includes('coin spins')) {
-                            const match = rawContent.match(/\*\*(.*?)\*\*\s+(spent|bet)/);
-                            if (match) player = match[1].toLowerCase();
+                            const match = rawContent.match(/\*\*(.*?)\*\*/);
+                            if (match) player = match[1].trim().toLowerCase();
                             isLoss = content.includes('lost it all');
                         } 
-                        // Slot ise
-                        else {
-                            const match = rawContent.match(/(?:\]|\|)\s*(.*?)\s*bet\s*(<:cowoncy:\d+>|💵)/);
-                            if (match) player = match[1].trim().toLowerCase();
+                        // Slot İsim Çözücü (Çok daha hassas)
+                        else if (content.includes('___slots___')) {
+                            const lines = rawContent.split('\n');
+                            if (lines.length > 1) {
+                                const betLine = lines[1];
+                                const betIndex = betLine.toLowerCase().lastIndexOf(' bet ');
+                                const pipeIndex = Math.max(betLine.lastIndexOf('|'), betLine.lastIndexOf(']'));
+                                
+                                if (betIndex !== -1 && pipeIndex !== -1 && betIndex > pipeIndex) {
+                                    player = betLine.substring(pipeIndex + 1, betIndex).trim().toLowerCase();
+                                }
+                            }
                             isLoss = content.includes('won nothing') || content.includes('lost');
                         }
 
-                        // Eğer oynayanı bulduysak istatistiklerine işle!
                         if (player) {
                             if (!playerStats[player]) {
                                 playerStats[player] = { cfW: 0, cfL: 0, sW: 0, sL: 0, streak: 0, max: 0 };
@@ -150,26 +150,35 @@ accounts.forEach((acc) => {
                             }
                         }
 
-                        // Bot kendi eli için bekliyorsa 16sn sayacı başlat
-                        if (isWaitingResult && !isPaused) {
+                        // Canlı oyundaysa kendi hamlesini tetikle
+                        if (!isHistory && isWaitingResult && !isPaused) {
                             isWaitingResult = false;
                             isLoss ? autoBotStreak++ : (autoBotStreak = 0);
-                            
                             setTimeout(() => { makeNextBet(); }, 16000); 
                         }
                     }
                 };
 
+                // ⏳ BOTA ZAMAN MAKİNESİ (GEÇMİŞİ OKUMA) EKLENDİ ⏳
+                const fetchHistory = async () => {
+                    try {
+                        const messages = await farmChannel.messages.fetch({ limit: 50 });
+                        messages.reverse().forEach(m => {
+                            if (m.author.bot) processOwOMessage(m, true);
+                        });
+                        console.log(`📜 [ANALYTICS] Geçmiş 50 kumar mesajı okundu, hafıza oluşturuldu!`);
+                    } catch (e) { console.log("Geçmiş okunamadı:", e); }
+                };
+                fetchHistory(); // Bot başlar başlamaz geçmişi çeker
+
                 client.on('messageCreate', async (msg) => {
                     if (msg.author.id === client.user.id) {
                         const cmd = msg.content.toLowerCase().trim();
 
-                        // 👻 HAYALET ANALİZ KOMUTU (Yeni mesaj atmaz, eskisini düzenler)
                         if (cmd.startsWith('owo analiz')) {
-                            let target = client.user.username.toLowerCase(); // Varsayılan: Kendin
+                            let target = client.user.username.toLowerCase(); 
                             if (client.user.globalName) target = client.user.globalName.toLowerCase();
 
-                            // Eğer birini etiketlediyse veya adını yazdıysa onu bul
                             const args = cmd.split(' ');
                             if (msg.mentions.users.size > 0) {
                                 let u = msg.mentions.users.first();
@@ -178,25 +187,18 @@ accounts.forEach((acc) => {
                                 target = args.slice(2).join(' ').toLowerCase();
                             }
 
-                            // Tam eşleşme olmasa da ismin bir kısmından o kişiyi bulma
                             let foundKey = Object.keys(playerStats).find(k => k.includes(target) || target.includes(k));
                             if (foundKey) target = foundKey;
 
-                            // Verileri Çek ve Oranları Hesapla
                             let s = playerStats[target] || { cfW: 0, cfL: 0, sW: 0, sL: 0, streak: 0, max: 0 };
-                            
-                            let cfT = s.cfW + s.cfL;
-                            let cfR = cfT > 0 ? ((s.cfW / cfT) * 100).toFixed(1) : 0;
-                            
-                            let sT = s.sW + s.sL;
-                            let sR = sT > 0 ? ((s.sW / sT) * 100).toFixed(1) : 0;
+                            let cfT = s.cfW + s.cfL; let cfR = cfT > 0 ? ((s.cfW / cfT) * 100).toFixed(1) : 0;
+                            let sT = s.sW + s.sL; let sR = sT > 0 ? ((s.sW / sT) * 100).toFixed(1) : 0;
 
                             const report = `📊 **ŞANS & RİSK RAPORU** | 👤 **${target.toUpperCase()}**\n` +
                                            `🪙 **Coinflip (CF):** ${s.cfW} Kazanma / ${s.cfL} Kaybetme (%${cfR})\n` +
                                            `🎰 **Slot (WS):** ${s.sW} Kazanma / ${s.sL} Kaybetme (%${sR})\n` +
                                            `🔥 **Anlık Kayıp Serisi:** ${s.streak} | 💀 **Max Seri:** ${s.max}`;
                             
-                            // 🪄 SİHİR BURADA: Kendi yazdığın "owo analiz" mesajını anında rapora çevirir! Spam Olamaz!
                             msg.edit(report).catch(() => {});
                         }
                         else if (cmd === 'owo dur') { 
@@ -210,16 +212,15 @@ accounts.forEach((acc) => {
                         }
                     }
 
-                    // Tüm mesajları izle ki herkesin istatistiğini tutabilsin
-                    if (msg.channel.id === acc.farmChannelId) checkOwOMessage(msg);
+                    if (msg.channel.id === acc.farmChannelId && msg.author.bot) processOwOMessage(msg, false);
                 });
 
                 client.on('messageUpdate', async (oldMsg, newMsg) => {
-                    if (newMsg.channel?.id === acc.farmChannelId) checkOwOMessage(newMsg);
+                    if (newMsg.channel?.id === acc.farmChannelId && newMsg.author?.bot) processOwOMessage(newMsg, false);
                 });
             }
         }
     });
 
-    client.login(acc.token).catch(err => console.log(`⚠️ Token hatası!`, err));
+    client.login(acc.token).catch(err => console.log(`⚠️ Token hatası!`));
 });
