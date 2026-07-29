@@ -5,18 +5,36 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => { res.send('✅ Luas Hub Kusursuz Slot & CF Analiz Aktif!'); });
+app.get('/', (req, res) => { res.send('✅ Luas Hub Mesaj Temizleyici & Yayın Sistemi Aktif!'); });
 app.listen(PORT, () => { console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`); });
 
+// ==========================================
+// HESAP AYARLARI
+// ==========================================
 const accounts = [
     {
-        name: "Hesap 1 (Yayınlı + VIP Tasarım Analiz)",
+        name: "Hesap 1 (Yayınlı + Temizleyici)",
         token: process.env.TOKEN_1,
         joinVoice: true, doStream: true, selfDeaf: true, selfMute: false, 
-        // 👇 İŞTE BÜTÜN SORUN BURADAYDI, SENİN GERÇEK KANAL ID'LERİNİ GERİ KOYDUM 👇
         guildId: "1347302840682549299", 
-        channelId: "1437706891290611782",
-        owoFarm: true, farmChannelId: "1437706891290611782"
+        channelId: "1437706891290611782"
+    },
+    {
+        name: "Hesap 2 (Sadece Profil)",
+        token: process.env.TOKEN_2,
+        joinVoice: false, doStream: false
+    },
+    {
+        name: "Hesap 3 (Ses Açık)",
+        token: process.env.TOKEN_3,
+        joinVoice: true, doStream: false, selfDeaf: false, selfMute: false,
+        guildId: "851097447568637985", channelId: "899711321543692348"
+    },
+    {
+        name: "Hesap 4 (Kulaklık Kapalı)",
+        token: process.env.TOKEN_4,
+        joinVoice: true, doStream: false, selfDeaf: true, selfMute: false,
+        guildId: "851097447568637985", channelId: "995746188034842674"
     }
 ];
 
@@ -29,6 +47,7 @@ accounts.forEach((acc) => {
     client.on('ready', async () => {
         console.log(`✅ [${acc.name}] Aktif! Giriş yapılan: ${client.user.username}`);
 
+        // --- SES VE YAYIN KISMI ---
         const connectToVoice = async () => {
             try {
                 await streamer.joinVoice(acc.guildId, acc.channelId, { self_mute: acc.selfMute, self_deaf: acc.selfDeaf, self_video: false });
@@ -48,6 +67,7 @@ accounts.forEach((acc) => {
             });
         }
 
+        // --- PROFİL GÖRÜNÜMÜ (RICH PRESENCE) ---
         const customStartTime = Date.now() - (5 * 24 * 60 * 60 * 1000);
         const updatePresence = () => {
             try {
@@ -55,7 +75,7 @@ accounts.forEach((acc) => {
                     .setApplicationId('1531119938851569774') 
                     .setType('PLAYING') 
                     .setName('best script /luashub') 
-                    .setDetails('noxy <3') 
+                    .setDetails('noxy x luashub') 
                     .setState('discord.gg/luashub') 
                     .setStartTimestamp(customStartTime) 
                     .addButton('Discord Sunucusu', 'https://discord.gg/luashub') 
@@ -66,172 +86,49 @@ accounts.forEach((acc) => {
         updatePresence(); setInterval(updatePresence, 30000); 
 
         // ==========================================
-        // KUSURSUZ İSİM AYIKLAYICI VE ANALİZ MOTORU
+        // ÖZEL MESAJ SİLME MOTORU (.sil)
         // ==========================================
-        if (acc.owoFarm && acc.farmChannelId) {
-            const farmChannel = client.channels.cache.get(acc.farmChannelId);
-            
-            if (farmChannel) {
-                let playerStats = {}; 
-                let isPaused = true; 
-                let isWaitingResult = false; 
-                let isVerifying = false; 
-                let autoBotStreak = 0; 
+        client.on('messageCreate', async (msg) => {
+            // Sadece botun kendi yazdığı mesajları algılar
+            if (msg.author.id === client.user.id) {
+                const args = msg.content.trim().split(/ +/);
+                const cmd = args[0].toLowerCase();
 
-                const humanTypeAndSend = async (text) => {
-                    if (isVerifying || isPaused) return; 
-                    farmChannel.sendTyping().catch(() => {});
-                    setTimeout(() => { 
-                        if (!isVerifying && !isPaused) farmChannel.send(text).catch(() => {});
-                    }, 500);
-                };
+                if (cmd === '.sil') {
+                    const amount = parseInt(args[1]);
 
-                const makeNextBet = () => {
-                    if (isVerifying || isPaused || isWaitingResult) return;
-                    isWaitingResult = true; 
-                    if (autoBotStreak >= 2) humanTypeAndSend("wcf all");
-                    else humanTypeAndSend("wcf 1");
-                };
-
-                setInterval(() => { if (!isVerifying && !isPaused) humanTypeAndSend("owo pray"); }, 5 * 60 * 1000);
-
-                const extractName = (text, type) => {
-                    let splitWord = type === 'cf' ? ' spent ' : ' bet ';
-                    let idx = text.toLowerCase().lastIndexOf(splitWord);
-                    if (idx === -1 && type === 'cf') {
-                        splitWord = ' bet ';
-                        idx = text.toLowerCase().lastIndexOf(splitWord);
-                    }
-                    if (idx === -1) return null;
-                    
-                    let namePart = text.substring(0, idx).replace(/\*/g, '').trim();
-                    namePart = namePart.replace(/^(?:<a?:\w+:\d+>|[\u2700-\u27BF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]|[\u200B-\u200D\uFEFF]|\||\[|\]|\s)+/, '').trim();
-                    return namePart.toLowerCase();
-                };
-
-                const processOwOMessage = (msg, isHistory = false) => {
-                    if (isVerifying && !isHistory) return; 
-                    const content = msg.content.toLowerCase();
-                    const rawContent = msg.content; 
-
-                    if (!isHistory && (content.includes('verify') || content.includes('captcha') || content.includes('real human'))) {
-                        isVerifying = true; 
-                        isPaused = true;
-                        return;
+                    // Sayı girilmemişse veya geçersizse uyar ve geç
+                    if (isNaN(amount) || amount <= 0) {
+                        return msg.edit("⚠️ Lütfen silinecek miktarı gir! Örnek: `.sil 3`")
+                                  .then(m => setTimeout(() => m.delete().catch(()=>{}), 3000))
+                                  .catch(()=>{});
                     }
 
-                    if (content.includes('coin spins') || content.includes('___slots___')) {
-                        let player = null;
-                        let isLoss = false;
+                    // Komut mesajını bilgi mesajına çevir
+                    await msg.edit(`🗑️ Son **${amount}** mesajın tespit ediliyor ve siliniyor...`).catch(()=>{});
 
-                        if (content.includes('coin spins')) {
-                            player = extractName(rawContent, 'cf');
-                            isLoss = content.includes('lost it all') || content.includes('lost');
-                        } 
-                        else if (content.includes('___slots___')) {
-                            const lines = rawContent.split('\n');
-                            if (lines.length > 1) {
-                                player = extractName(lines[1], 'slot');
-                            }
-                            isLoss = content.includes('won nothing') || content.includes('lost');
-                        }
-
-                        if (player) {
-                            if (!playerStats[player]) {
-                                playerStats[player] = { cfW: 0, cfL: 0, sW: 0, sL: 0, streak: 0, max: 0 };
-                            }
-                            const s = playerStats[player];
-
-                            if (content.includes('coin spins')) {
-                                isLoss ? s.cfL++ : s.cfW++;
-                            } else {
-                                isLoss ? s.sL++ : s.sW++;
-                            }
-
-                            if (isLoss) {
-                                s.streak++;
-                                if (s.streak > s.max) s.max = s.streak;
-                            } else {
-                                s.streak = 0;
-                            }
-                        }
-
-                        if (!isHistory && isWaitingResult && !isPaused) {
-                            isWaitingResult = false;
-                            isLoss ? autoBotStreak++ : (autoBotStreak = 0);
-                            setTimeout(() => { makeNextBet(); }, 16000); 
-                        }
-                    }
-                };
-
-                // ZAMAN MAKİNESİ
-                const fetchHistory = async () => {
                     try {
-                        const messages = await farmChannel.messages.fetch({ limit: 50 });
-                        messages.reverse().forEach(m => {
-                            if (m.author.bot) processOwOMessage(m, true);
-                        });
-                        console.log(`📜 [ANALYTICS] Geçmiş kumar mesajları okundu, hafıza oluşturuldu!`);
-                    } catch (e) { console.log("Geçmiş okunamadı:", e); }
-                };
-                fetchHistory();
+                        // Kanaldaki son 100 mesajı çek
+                        const fetched = await msg.channel.messages.fetch({ limit: 100 });
+                        
+                        // Sadece sana ait olanları ayıkla (ve bu .sil komutunun kendi mesajını hariç tut)
+                        const myMessages = fetched.filter(m => m.author.id === client.user.id && m.id !== msg.id).first(amount);
 
-                client.on('messageCreate', async (msg) => {
-                    if (msg.author.id === client.user.id) {
-                        const cmd = msg.content.toLowerCase().trim();
-
-                        if (cmd.startsWith('owo analiz')) {
-                            let target = client.user.username.toLowerCase(); 
-                            if (client.user.globalName) target = client.user.globalName.toLowerCase();
-
-                            const args = cmd.split(' ');
-                            if (msg.mentions.users.size > 0) {
-                                let u = msg.mentions.users.first();
-                                target = u.globalName ? u.globalName.toLowerCase() : u.username.toLowerCase();
-                            } else if (args.length > 2) {
-                                target = args.slice(2).join(' ').toLowerCase();
-                            }
-
-                            // AKILLI İSİM EŞLEŞTİRİCİ (Artık nonxtr = LUAS | NONX sorunsuz eşleşecek!)
-                            const targetWords = target.split(/[\s|]+/).filter(w => w.length > 2);
-                            let foundKey = Object.keys(playerStats).find(k => {
-                                if (k === target || k.includes(target) || target.includes(k)) return true;
-                                return targetWords.some(w => k.includes(w) || w.includes(k));
-                            });
-                            
-                            if (foundKey) target = foundKey;
-
-                            let s = playerStats[target] || { cfW: 0, cfL: 0, sW: 0, sL: 0, streak: 0, max: 0 };
-                            let cfT = s.cfW + s.cfL; let cfR = cfT > 0 ? ((s.cfW / cfT) * 100).toFixed(1) : 0;
-                            let sT = s.sW + s.sL; let sR = sT > 0 ? ((s.sW / sT) * 100).toFixed(1) : 0;
-
-                            const report = `> 📊 **ŞANS & RİSK RAPORU**\n` +
-                                           `> 👤 **Oyuncu:** \`${target.toUpperCase()}\`\n> \n` +
-                                           `> 🪙 **Coinflip (CF):** \`${s.cfW} Kazanma\` / \`${s.cfL} Kaybetme\` **(%${cfR})**\n` +
-                                           `> 🎰 **Slot (WS):** \`${s.sW} Kazanma\` / \`${s.sL} Kaybetme\` **(%${sR})**\n> \n` +
-                                           `> 🔥 **Anlık Kayıp Serisi:** \`${s.streak}\` | 💀 **Max Seri:** \`${s.max}\``;
-                            
-                            msg.edit(report).catch(() => {});
+                        // Mesajları sırayla ve güvenli bir gecikmeyle sil (Spam/Ban koruması)
+                        for (const m of myMessages) {
+                            await m.delete().catch(() => {});
+                            await new Promise(r => setTimeout(r, 700)); // Discord'dan ban yememek için her silmede 700ms bekler
                         }
-                        else if (cmd === 'owo dur') { 
-                            isPaused = true; 
-                            msg.edit("> 🛑 **ACİL FREN:** Oynamayı tamamen durdurdum.").catch(() => {}); 
-                        }
-                        else if (cmd === 'owo devam') {
-                            isPaused = false; isVerifying = false; isWaitingResult = false;
-                            msg.edit("> ✅ **SİSTEM AKTİF:** Otomatik WCF motoru ateşlendi! (16sn Korumalı)").catch(() => {});
-                            makeNextBet(); 
-                        }
+
+                        // İşlem bitince en baştaki `.sil` komut mesajını da yokederek iz kaybettir
+                        await msg.delete().catch(() => {});
+                        
+                    } catch (err) {
+                        console.log("Silme işlemi sırasında hata oluştu.");
                     }
-
-                    if (msg.channel.id === acc.farmChannelId && msg.author.bot) processOwOMessage(msg, false);
-                });
-
-                client.on('messageUpdate', async (oldMsg, newMsg) => {
-                    if (newMsg.channel?.id === acc.farmChannelId && newMsg.author?.bot) processOwOMessage(newMsg, false);
-                });
+                }
             }
-        }
+        });
     });
 
     client.login(acc.token).catch(err => console.log(`⚠️ Token hatası!`));
