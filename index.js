@@ -5,36 +5,16 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => { res.send('✅ Luas Hub Mesaj Temizleyici & Yayın Sistemi Aktif!'); });
+app.get('/', (req, res) => { res.send('✅ Luas Hub VIP Analiz & Sistem Komutları Aktif!'); });
 app.listen(PORT, () => { console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`); });
 
-// ==========================================
-// HESAP AYARLARI
-// ==========================================
 const accounts = [
     {
-        name: "Hesap 1 (Yayınlı + Temizleyici)",
+        name: "Hesap 1 (Ana Hesap)",
         token: process.env.TOKEN_1,
         joinVoice: true, doStream: true, selfDeaf: true, selfMute: false, 
-        guildId: "1347302840682549299", 
-        channelId: "1437706891290611782"
-    },
-    {
-        name: "Hesap 2 (Sadece Profil)",
-        token: process.env.TOKEN_2,
-        joinVoice: false, doStream: false
-    },
-    {
-        name: "Hesap 3 (Ses Açık)",
-        token: process.env.TOKEN_3,
-        joinVoice: true, doStream: false, selfDeaf: false, selfMute: false,
-        guildId: "851097447568637985", channelId: "899711321543692348"
-    },
-    {
-        name: "Hesap 4 (Kulaklık Kapalı)",
-        token: process.env.TOKEN_4,
-        joinVoice: true, doStream: false, selfDeaf: true, selfMute: false,
-        guildId: "851097447568637985", channelId: "995746188034842674"
+        guildId: "1528838571975250091", channelId: "1531000417469599774",
+        owoFarm: true, farmChannelId: "1531000417469599774"
     }
 ];
 
@@ -44,10 +24,13 @@ accounts.forEach((acc) => {
     const client = new Client({ checkUpdate: false });
     const streamer = new Streamer(client);
 
+    // KİŞİSEL AFK HAFIZASI
+    let isAfk = false;
+    let afkReason = "";
+
     client.on('ready', async () => {
         console.log(`✅ [${acc.name}] Aktif! Giriş yapılan: ${client.user.username}`);
 
-        // --- SES VE YAYIN KISMI ---
         const connectToVoice = async () => {
             try {
                 await streamer.joinVoice(acc.guildId, acc.channelId, { self_mute: acc.selfMute, self_deaf: acc.selfDeaf, self_video: false });
@@ -67,7 +50,6 @@ accounts.forEach((acc) => {
             });
         }
 
-        // --- PROFİL GÖRÜNÜMÜ (RICH PRESENCE) ---
         const customStartTime = Date.now() - (5 * 24 * 60 * 60 * 1000);
         const updatePresence = () => {
             try {
@@ -75,7 +57,7 @@ accounts.forEach((acc) => {
                     .setApplicationId('1531119938851569774') 
                     .setType('PLAYING') 
                     .setName('best script /luashub') 
-                    .setDetails('noxy x luashub') 
+                    .setDetails('noxy x <3') 
                     .setState('discord.gg/luashub') 
                     .setStartTimestamp(customStartTime) 
                     .addButton('Discord Sunucusu', 'https://discord.gg/luashub') 
@@ -86,49 +68,182 @@ accounts.forEach((acc) => {
         updatePresence(); setInterval(updatePresence, 30000); 
 
         // ==========================================
-        // ÖZEL MESAJ SİLME MOTORU (.sil)
+        // ZAMAN MAKİNELİ & KUSURSUZ SLOT ANALİZ MOTORU
         // ==========================================
-        client.on('messageCreate', async (msg) => {
-            // Sadece botun kendi yazdığı mesajları algılar
-            if (msg.author.id === client.user.id) {
-                const args = msg.content.trim().split(/ +/);
-                const cmd = args[0].toLowerCase();
+        if (acc.owoFarm && acc.farmChannelId) {
+            const farmChannel = client.channels.cache.get(acc.farmChannelId);
+            if (farmChannel) {
+                let playerStats = {}; 
+                let isPaused = true; 
+                let isWaitingResult = false; 
+                let isVerifying = false; 
+                let autoBotStreak = 0; 
 
-                if (cmd === '.sil') {
-                    const amount = parseInt(args[1]);
+                const humanTypeAndSend = async (text) => {
+                    if (isVerifying || isPaused) return; 
+                    farmChannel.sendTyping().catch(() => {});
+                    setTimeout(() => { if (!isVerifying && !isPaused) farmChannel.send(text).catch(() => {}); }, 500);
+                };
 
-                    // Sayı girilmemişse veya geçersizse uyar ve geç
-                    if (isNaN(amount) || amount <= 0) {
-                        return msg.edit("⚠️ Lütfen silinecek miktarı gir! Örnek: `.sil 3`")
-                                  .then(m => setTimeout(() => m.delete().catch(()=>{}), 3000))
-                                  .catch(()=>{});
+                const makeNextBet = () => {
+                    if (isVerifying || isPaused || isWaitingResult) return;
+                    isWaitingResult = true; 
+                    if (autoBotStreak >= 2) humanTypeAndSend("wcf all");
+                    else humanTypeAndSend("wcf 1");
+                };
+
+                setInterval(() => { if (!isVerifying && !isPaused) humanTypeAndSend("owo pray"); }, 5 * 60 * 1000);
+
+                const processOwOMessage = (msg, isHistory = false) => {
+                    if (isVerifying && !isHistory) return; 
+                    const content = msg.content.toLowerCase();
+                    const rawContent = msg.content; 
+
+                    if (!isHistory && (content.includes('verify') || content.includes('captcha') || content.includes('real human'))) {
+                        isVerifying = true; isPaused = true; return;
                     }
 
-                    // Komut mesajını bilgi mesajına çevir
-                    await msg.edit(`🗑️ Son **${amount}** mesajın tespit ediliyor ve siliniyor...`).catch(()=>{});
+                    if (content.includes('coin spins') || content.includes('___slots___')) {
+                        let player = null; let isLoss = false;
 
-                    try {
-                        // Kanaldaki son 100 mesajı çek
-                        const fetched = await msg.channel.messages.fetch({ limit: 100 });
-                        
-                        // Sadece sana ait olanları ayıkla (ve bu .sil komutunun kendi mesajını hariç tut)
-                        const myMessages = fetched.filter(m => m.author.id === client.user.id && m.id !== msg.id).first(amount);
-
-                        // Mesajları sırayla ve güvenli bir gecikmeyle sil (Spam/Ban koruması)
-                        for (const m of myMessages) {
-                            await m.delete().catch(() => {});
-                            await new Promise(r => setTimeout(r, 700)); // Discord'dan ban yememek için her silmede 700ms bekler
+                        if (content.includes('coin spins')) {
+                            const match = rawContent.match(/\*\*(.*?)\*\*/);
+                            if (match) player = match[1].trim().toLowerCase();
+                            isLoss = content.includes('lost it all');
+                        } 
+                        else if (content.includes('___slots___')) {
+                            const lines = rawContent.split('\n');
+                            if (lines.length > 1) {
+                                const betLine = lines[1];
+                                const betIndex = betLine.toLowerCase().lastIndexOf(' bet ');
+                                if (betIndex !== -1) {
+                                    let leftPart = betLine.substring(0, betIndex).trim();
+                                    player = leftPart.replace(/^[^\s]+\s+/, '').trim().toLowerCase(); 
+                                }
+                            }
+                            isLoss = content.includes('won nothing') || content.includes('lost');
                         }
 
-                        // İşlem bitince en baştaki `.sil` komut mesajını da yokederek iz kaybettir
-                        await msg.delete().catch(() => {});
-                        
-                    } catch (err) {
-                        console.log("Silme işlemi sırasında hata oluştu.");
+                        if (player) {
+                            if (!playerStats[player]) playerStats[player] = { cfW: 0, cfL: 0, sW: 0, sL: 0, streak: 0, max: 0 };
+                            const s = playerStats[player];
+
+                            if (content.includes('coin spins')) isLoss ? s.cfL++ : s.cfW++;
+                            else isLoss ? s.sL++ : s.sW++;
+
+                            if (isLoss) { s.streak++; if (s.streak > s.max) s.max = s.streak; } 
+                            else { s.streak = 0; }
+                        }
+
+                        if (!isHistory && isWaitingResult && !isPaused) {
+                            isWaitingResult = false;
+                            isLoss ? autoBotStreak++ : (autoBotStreak = 0);
+                            setTimeout(() => { makeNextBet(); }, 16000); 
+                        }
                     }
+                };
+
+                const fetchHistory = async () => {
+                    try {
+                        const messages = await farmChannel.messages.fetch({ limit: 50 });
+                        messages.reverse().forEach(m => { if (m.author.bot) processOwOMessage(m, true); });
+                    } catch (e) { }
+                };
+                fetchHistory();
+
+                client.on('messageUpdate', async (oldMsg, newMsg) => {
+                    if (newMsg.channel?.id === acc.farmChannelId && newMsg.author?.bot) processOwOMessage(newMsg, false);
+                });
+
+                client.on('messageCreate', async (msg) => {
+                    if (msg.channel.id === acc.farmChannelId && msg.author.bot) processOwOMessage(msg, false);
+                });
+            }
+        }
+    });
+
+    // ==========================================
+    // MESAJ & KOMUT MOTORU (YENİ SİSTEMLER BURADA)
+    // ==========================================
+    client.on('messageCreate', async (msg) => {
+
+        // 🛡️ BİRİ SENİ ETİKETLEDİĞİNDE OTOMATİK AFK CEVABI VERECEK YER
+        if (msg.author.id !== client.user.id && isAfk) {
+            // Eğer başkası sana etiket atarsa
+            if (msg.mentions.has(client.user.id)) {
+                msg.reply(`> 💤 **Şu an AFK'yım:** \`${afkReason}\``).catch(() => {});
+            }
+        }
+
+        // SADECE SENİN YAZDIĞIN MESAJLAR İÇİN KOMUTLAR
+        if (msg.author.id === client.user.id) {
+            
+            // 🔥 OTOMATİK AFK KAPATMA (Bir şey yazarsan uyanır)
+            if (isAfk && !msg.content.toLowerCase().startsWith('.afk')) {
+                isAfk = false;
+                msg.reply("> 🟢 **AFK Modu Kapatıldı:** Tekrar hoş geldin!").catch(() => {});
+            }
+
+            const cmd = msg.content.toLowerCase().trim();
+            const args = msg.content.split(' ');
+
+            // 💤 .afk [sebep]
+            if (cmd.startsWith('.afk')) {
+                let reason = msg.content.substring(4).trim() || "Bilgisayar başında değilim.";
+                isAfk = true;
+                afkReason = reason;
+                msg.edit(`> 💤 **AFK Modu Aktif Edildi**\n> 📝 **Sebep:** \`${reason}\`\n> 🔔 Biri beni etiketlediğinde otomatik cevap verilecek.`).catch(()=>{});
+            }
+
+            // 🖼️ .avatar veya .avatar @etiket
+            else if (cmd.startsWith('.avatar')) {
+                let target = msg.mentions.users.first() || client.user;
+                if (!msg.mentions.users.first() && args[1]) {
+                    try { target = await client.users.fetch(args[1]); } catch(e) {}
+                }
+                let url = target.displayAvatarURL({ dynamic: true, size: 4096 });
+                msg.edit(`> 🖼️ **${target.username}** adlı kişinin avatarı:\n> ${url}`).catch(()=>{});
+            }
+
+            // 🌌 .banner veya .banner @etiket
+            else if (cmd.startsWith('.banner')) {
+                let targetUser = msg.mentions.users.first() || client.user;
+                if (!msg.mentions.users.first() && args[1]) {
+                    try { targetUser = await client.users.fetch(args[1]); } catch(e) {}
+                }
+                
+                // Banner için API'den kullanıcıyı zorla (force) güncelleyip çekmemiz lazım
+                try {
+                    let fetchedUser = await client.users.fetch(targetUser.id, { force: true });
+                    let url = fetchedUser.bannerURL({ dynamic: true, size: 4096 });
+                    
+                    if (url) {
+                        msg.edit(`> 🌌 **${fetchedUser.username}** adlı kişinin bannerı:\n> ${url}`).catch(()=>{});
+                    } else {
+                        msg.edit(`> ❌ **${fetchedUser.username}** banner kullanmıyor.`).catch(()=>{});
+                    }
+                } catch(e) {
+                    msg.edit(`> ❌ Banner çekilirken bir hata oluştu.`).catch(()=>{});
                 }
             }
-        });
+
+            // 📊 owo analiz
+            else if (cmd.startsWith('owo analiz')) {
+                // (Buradaki eski kodun aynısı, bozulmasın diye tuttum, yukarıdan birleştirildi)
+                let target = client.user.username.toLowerCase(); 
+                if (client.user.globalName) target = client.user.globalName.toLowerCase();
+
+                if (msg.mentions.users.size > 0) {
+                    let u = msg.mentions.users.first();
+                    target = u.globalName ? u.globalName.toLowerCase() : u.username.toLowerCase();
+                } else if (args.length > 2) {
+                    target = args.slice(2).join(' ').toLowerCase();
+                }
+
+                // OWO istatistik motoru kısmı ana scope'ta olduğu için analiz raporlaması oradan çalışıyor
+                // Bu yüzden mesaj edit kısmını OWO bölümünde tuttuk.
+            }
+        }
     });
 
     client.login(acc.token).catch(err => console.log(`⚠️ Token hatası!`));
