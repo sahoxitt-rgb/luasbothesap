@@ -55,7 +55,7 @@ accounts.forEach((acc) => {
                     .setApplicationId('1531119938851569774') 
                     .setType('PLAYING') 
                     .setName('best script /luashub') 
-                    .setDetails('noxy x luashub') 
+                    .setDetails('noxy <3') 
                     .setState('discord.gg/luashub') 
                     .setStartTimestamp(customStartTime) 
                     .addButton('Discord Sunucusu', 'https://discord.gg/luashub') 
