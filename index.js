@@ -5,7 +5,7 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => { res.send('✅ Luas Hub Kusursuz AFK, Banner & Silici Aktif!'); });
+app.get('/', (req, res) => { res.send('✅ Luas Hub AFK, Silici & Gölge İspiyoncu Aktif!'); });
 app.listen(PORT, () => { console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`); });
 
 const accounts = [
@@ -24,8 +24,10 @@ accounts.forEach((acc) => {
     const client = new Client({ checkUpdate: false });
     const streamer = new Streamer(client);
 
+    // HAFIZA DEĞİŞKENLERİ
     let isAfk = false;
     let afkReason = "";
+    let smActive = false; // Gölge İspiyoncu (Sniper) Kapalı Başlar
 
     client.on('ready', async () => {
         console.log(`✅ [${acc.name}] Aktif! Giriş yapılan: ${client.user.username}`);
@@ -162,6 +164,21 @@ accounts.forEach((acc) => {
     });
 
     // ==========================================
+    // 🕵️‍♂️ SİLİNEN MESAJLARI YAKALAMA MOTORU (SNİPER)
+    // ==========================================
+    client.on('messageDelete', async (delMsg) => {
+        // SM Aktif değilse, mesaj kendine aitse veya içeriği okunamıyorsa boşver
+        if (!smActive || delMsg.author?.id === client.user.id || !delMsg.content) return;
+
+        try {
+            const log = `> 🗑️ **[SİLİNEN MESAJ YAKALANDI]**\n> 👤 **Kişi:** \`${delMsg.author.username}\`\n> 📍 **Kanal:** <#${delMsg.channel.id}>\n> 📝 **Mesaj:** ${delMsg.content}`;
+            
+            // Kendi DM kutuna (Notlar kısmına) mesajı gönderir
+            await client.user.send(log).catch(()=>{});
+        } catch(e) { }
+    });
+
+    // ==========================================
     // MESAJ & KOMUT MOTORU
     // ==========================================
     client.on('messageCreate', async (msg) => {
@@ -199,29 +216,18 @@ accounts.forEach((acc) => {
                 msg.edit(`> 🖼️ **${target.username}** adlı kişinin avatarı:\n> ${url}`).catch(()=>{});
             }
 
-            // 🌌 .banner (KUSURSUZ ÇÖZÜM - DİREKT API İSTEĞİ)
-            else if (cmd.startsWith('.banner')) {
-                let targetUser = msg.mentions.users.first() || client.user;
-                if (!msg.mentions.users.first() && args[1]) {
-                    try { targetUser = await client.users.fetch(args[1]); } catch(e) {}
-                }
+            // 🕵️‍♂️ .sm aktif / .sm kapalı (Gölge İspiyoncu)
+            else if (cmd.startsWith('.sm')) {
+                let state = args[1] ? args[1].toLowerCase() : '';
                 
-                try {
-                    // Discord API'sine direkt istek atarak banneri kaba kuvvetle alıyoruz
-                    const rawUser = await client.api.users(targetUser.id).get();
-                    
-                    if (rawUser.banner) {
-                        let ext = rawUser.banner.startsWith("a_") ? "gif" : "png";
-                        let url = `https://cdn.discordapp.com/banners/${rawUser.id}/${rawUser.banner}.${ext}?size=4096`;
-                        msg.edit(`> 🌌 **${rawUser.username}** adlı kişinin bannerı:\n> ${url}`).catch(()=>{});
-                    } else if (rawUser.accent_color) {
-                        let hex = rawUser.accent_color.toString(16).padStart(6, '0');
-                        msg.edit(`> 🎨 **${rawUser.username}** banner kullanmıyor.\n> 🖌️ **Tema Rengi:** \`#${hex}\``).catch(()=>{});
-                    } else {
-                        msg.edit(`> ❌ **${rawUser.username}** banner veya özel renk kullanmıyor.`).catch(()=>{});
-                    }
-                } catch(e) {
-                    msg.edit(`> ❌ Sistem API'den banner'ı çekerken engellendi.`).catch(()=>{});
+                if (state === 'aktif') {
+                    smActive = true;
+                    msg.edit(`> 🕵️‍♂️ **Gölge İspiyoncu (SM) Aktif:** Biri mesajını sildiği an kendi özel mesaj (DM) kutuna kanıtıyla düşecek!`).catch(()=>{});
+                } else if (state === 'kapalı') {
+                    smActive = false;
+                    msg.edit(`> 🛑 **Gölge İspiyoncu (SM) Kapatıldı.** Artık silinen mesajlar izlenmiyor.`).catch(()=>{});
+                } else {
+                    msg.edit(`> ⚠️ **Hatalı Kullanım:** Lütfen \`.sm aktif\` veya \`.sm kapalı\` yaz.`).catch(()=>{});
                 }
             }
             
@@ -232,7 +238,6 @@ accounts.forEach((acc) => {
                 
                 try {
                     const msgs = await msg.channel.messages.fetch({ limit: 100 });
-                    // Sadece senin yazdığın mesajları bul
                     const myMsgs = msgs.filter(m => m.author.id === client.user.id);
                     
                     let deletedCount = 0;
