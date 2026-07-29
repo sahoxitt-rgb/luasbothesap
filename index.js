@@ -5,7 +5,7 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => { res.send('✅ Luas Hub VIP Analiz & Sistem Komutları Aktif!'); });
+app.get('/', (req, res) => { res.send('✅ Luas Hub Kusursuz AFK, Banner & Silici Aktif!'); });
 app.listen(PORT, () => { console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`); });
 
 const accounts = [
@@ -24,7 +24,6 @@ accounts.forEach((acc) => {
     const client = new Client({ checkUpdate: false });
     const streamer = new Streamer(client);
 
-    // KİŞİSEL AFK HAFIZASI
     let isAfk = false;
     let afkReason = "";
 
@@ -57,7 +56,7 @@ accounts.forEach((acc) => {
                     .setApplicationId('1531119938851569774') 
                     .setType('PLAYING') 
                     .setName('best script /luashub') 
-                    .setDetails('noxy x <3') 
+                    .setDetails('noxy <3') 
                     .setState('discord.gg/luashub') 
                     .setStartTimestamp(customStartTime) 
                     .addButton('Discord Sunucusu', 'https://discord.gg/luashub') 
@@ -68,7 +67,7 @@ accounts.forEach((acc) => {
         updatePresence(); setInterval(updatePresence, 30000); 
 
         // ==========================================
-        // ZAMAN MAKİNELİ & KUSURSUZ SLOT ANALİZ MOTORU
+        // ZAMAN MAKİNELİ OWO MOTORU
         // ==========================================
         if (acc.owoFarm && acc.farmChannelId) {
             const farmChannel = client.channels.cache.get(acc.farmChannelId);
@@ -163,22 +162,18 @@ accounts.forEach((acc) => {
     });
 
     // ==========================================
-    // MESAJ & KOMUT MOTORU (YENİ SİSTEMLER BURADA)
+    // MESAJ & KOMUT MOTORU
     // ==========================================
     client.on('messageCreate', async (msg) => {
 
-        // 🛡️ BİRİ SENİ ETİKETLEDİĞİNDE OTOMATİK AFK CEVABI VERECEK YER
         if (msg.author.id !== client.user.id && isAfk) {
-            // Eğer başkası sana etiket atarsa
             if (msg.mentions.has(client.user.id)) {
                 msg.reply(`> 💤 **Şu an AFK'yım:** \`${afkReason}\``).catch(() => {});
             }
         }
 
-        // SADECE SENİN YAZDIĞIN MESAJLAR İÇİN KOMUTLAR
         if (msg.author.id === client.user.id) {
             
-            // 🔥 OTOMATİK AFK KAPATMA (Bir şey yazarsan uyanır)
             if (isAfk && !msg.content.toLowerCase().startsWith('.afk')) {
                 isAfk = false;
                 msg.reply("> 🟢 **AFK Modu Kapatıldı:** Tekrar hoş geldin!").catch(() => {});
@@ -190,12 +185,11 @@ accounts.forEach((acc) => {
             // 💤 .afk [sebep]
             if (cmd.startsWith('.afk')) {
                 let reason = msg.content.substring(4).trim() || "Bilgisayar başında değilim.";
-                isAfk = true;
-                afkReason = reason;
+                isAfk = true; afkReason = reason;
                 msg.edit(`> 💤 **AFK Modu Aktif Edildi**\n> 📝 **Sebep:** \`${reason}\`\n> 🔔 Biri beni etiketlediğinde otomatik cevap verilecek.`).catch(()=>{});
             }
 
-            // 🖼️ .avatar veya .avatar @etiket
+            // 🖼️ .avatar
             else if (cmd.startsWith('.avatar')) {
                 let target = msg.mentions.users.first() || client.user;
                 if (!msg.mentions.users.first() && args[1]) {
@@ -205,43 +199,50 @@ accounts.forEach((acc) => {
                 msg.edit(`> 🖼️ **${target.username}** adlı kişinin avatarı:\n> ${url}`).catch(()=>{});
             }
 
-            // 🌌 .banner veya .banner @etiket
+            // 🌌 .banner (KUSURSUZ ÇÖZÜM - DİREKT API İSTEĞİ)
             else if (cmd.startsWith('.banner')) {
                 let targetUser = msg.mentions.users.first() || client.user;
                 if (!msg.mentions.users.first() && args[1]) {
                     try { targetUser = await client.users.fetch(args[1]); } catch(e) {}
                 }
                 
-                // Banner için API'den kullanıcıyı zorla (force) güncelleyip çekmemiz lazım
                 try {
-                    let fetchedUser = await client.users.fetch(targetUser.id, { force: true });
-                    let url = fetchedUser.bannerURL({ dynamic: true, size: 4096 });
+                    // Discord API'sine direkt istek atarak banneri kaba kuvvetle alıyoruz
+                    const rawUser = await client.api.users(targetUser.id).get();
                     
-                    if (url) {
-                        msg.edit(`> 🌌 **${fetchedUser.username}** adlı kişinin bannerı:\n> ${url}`).catch(()=>{});
+                    if (rawUser.banner) {
+                        let ext = rawUser.banner.startsWith("a_") ? "gif" : "png";
+                        let url = `https://cdn.discordapp.com/banners/${rawUser.id}/${rawUser.banner}.${ext}?size=4096`;
+                        msg.edit(`> 🌌 **${rawUser.username}** adlı kişinin bannerı:\n> ${url}`).catch(()=>{});
+                    } else if (rawUser.accent_color) {
+                        let hex = rawUser.accent_color.toString(16).padStart(6, '0');
+                        msg.edit(`> 🎨 **${rawUser.username}** banner kullanmıyor.\n> 🖌️ **Tema Rengi:** \`#${hex}\``).catch(()=>{});
                     } else {
-                        msg.edit(`> ❌ **${fetchedUser.username}** banner kullanmıyor.`).catch(()=>{});
+                        msg.edit(`> ❌ **${rawUser.username}** banner veya özel renk kullanmıyor.`).catch(()=>{});
                     }
                 } catch(e) {
-                    msg.edit(`> ❌ Banner çekilirken bir hata oluştu.`).catch(()=>{});
+                    msg.edit(`> ❌ Sistem API'den banner'ı çekerken engellendi.`).catch(()=>{});
                 }
             }
-
-            // 📊 owo analiz
-            else if (cmd.startsWith('owo analiz')) {
-                // (Buradaki eski kodun aynısı, bozulmasın diye tuttum, yukarıdan birleştirildi)
-                let target = client.user.username.toLowerCase(); 
-                if (client.user.globalName) target = client.user.globalName.toLowerCase();
-
-                if (msg.mentions.users.size > 0) {
-                    let u = msg.mentions.users.first();
-                    target = u.globalName ? u.globalName.toLowerCase() : u.username.toLowerCase();
-                } else if (args.length > 2) {
-                    target = args.slice(2).join(' ').toLowerCase();
-                }
-
-                // OWO istatistik motoru kısmı ana scope'ta olduğu için analiz raporlaması oradan çalışıyor
-                // Bu yüzden mesaj edit kısmını OWO bölümünde tuttuk.
+            
+            // 🧹 .sil [sayı] (Kendi attığın mesajları süpürür)
+            else if (cmd.startsWith('.sil')) {
+                let amount = parseInt(args[1]) || 5; 
+                msg.edit(`> 🧹 Son ${amount} mesajım siliniyor...`).catch(()=>{});
+                
+                try {
+                    const msgs = await msg.channel.messages.fetch({ limit: 100 });
+                    // Sadece senin yazdığın mesajları bul
+                    const myMsgs = msgs.filter(m => m.author.id === client.user.id);
+                    
+                    let deletedCount = 0;
+                    myMsgs.forEach(m => {
+                        if (deletedCount <= amount) {
+                            m.delete().catch(()=>{});
+                            deletedCount++;
+                        }
+                    });
+                } catch(e) { }
             }
         }
     });
