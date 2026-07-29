@@ -5,7 +5,7 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => { res.send('✅ Luas Hub Sabit AFK & Gölge İspiyoncu Aktif!'); });
+app.get('/', (req, res) => { res.send('✅ Luas Hub Sabit AFK & Özel Kanal İspiyoncu Aktif!'); });
 app.listen(PORT, () => { console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`); });
 
 const accounts = [
@@ -163,17 +163,23 @@ accounts.forEach((acc) => {
     });
 
     // ==========================================
-    // 🕵️‍♂️ GÖLGE İSPİYONCU (NOTLARA BİLDİRİM MOTORU)
+    // 🕵️‍♂️ GÖLGE İSPİYONCU (ÖZEL KANALA LOGLAMA)
     // ==========================================
     client.on('messageDelete', async (delMsg) => {
+        // SM aktif değilse, mesaj sana aitse veya içeriği yoksa boşver
         if (!smActive || delMsg.author?.id === client.user.id || !delMsg.content) return;
 
+        // Sadece belirttiğin kaynak kanalı (1347305969469624400) dinler
+        if (delMsg.channel.id !== "1347305969469624400") return;
+
         try {
-            const log = `> 🗑️ **[SİLİNEN MESAJ YAKALANDI]**\n> 👤 **Kişi:** \`${delMsg.author.username}\`\n> 📍 **Kanal:** <#${delMsg.channel.id}>\n> 📝 **Mesaj:** ${delMsg.content}`;
+            const log = `> 🗑️ **[SİLİNEN MESAJ]**\n> 👤 **Kişi:** \`${delMsg.author.username}\`\n> 📝 **Mesaj:** ${delMsg.content}`;
             
-            // Kullanıcının kendi (Saved Messages) kanalına garantili mesaj atma
-            const user = await client.users.fetch(client.user.id);
-            if (user) await user.send(log);
+            // Belirttiğin sunucudaki hedef log kanalına (1532169420439421069) fırlatır
+            const logChannel = client.channels.cache.get("1532169420439421069");
+            if (logChannel) {
+                await logChannel.send(log).catch(()=>{});
+            }
         } catch(e) { }
     });
 
@@ -223,7 +229,7 @@ accounts.forEach((acc) => {
                 
                 if (state === 'aktif') {
                     smActive = true;
-                    msg.edit(`> 🕵️‍♂️ **Gölge İspiyoncu (SM) Aktif:** Biri mesajını sildiği an kendi özel mesaj (DM) kutuna kanıtıyla düşecek!`).catch(()=>{});
+                    msg.edit(`> 🕵️‍♂️ **Gölge İspiyoncu (SM) Aktif:** Belirlenen kanalda silinen mesajlar anında log kanalına düşecek!`).catch(()=>{});
                 } else if (state === 'kapalı') {
                     smActive = false;
                     msg.edit(`> 🛑 **Gölge İspiyoncu (SM) Kapatıldı.** Artık silinen mesajlar izlenmiyor.`).catch(()=>{});
