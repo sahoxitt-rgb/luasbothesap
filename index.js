@@ -5,7 +5,7 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => { res.send('✅ Luas Hub AFK, Silici & Gölge İspiyoncu Aktif!'); });
+app.get('/', (req, res) => { res.send('✅ Luas Hub Sabit AFK & Gölge İspiyoncu Aktif!'); });
 app.listen(PORT, () => { console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`); });
 
 const accounts = [
@@ -24,10 +24,9 @@ accounts.forEach((acc) => {
     const client = new Client({ checkUpdate: false });
     const streamer = new Streamer(client);
 
-    // HAFIZA DEĞİŞKENLERİ
     let isAfk = false;
     let afkReason = "";
-    let smActive = false; // Gölge İspiyoncu (Sniper) Kapalı Başlar
+    let smActive = false;
 
     client.on('ready', async () => {
         console.log(`✅ [${acc.name}] Aktif! Giriş yapılan: ${client.user.username}`);
@@ -164,17 +163,17 @@ accounts.forEach((acc) => {
     });
 
     // ==========================================
-    // 🕵️‍♂️ SİLİNEN MESAJLARI YAKALAMA MOTORU (SNİPER)
+    // 🕵️‍♂️ GÖLGE İSPİYONCU (NOTLARA BİLDİRİM MOTORU)
     // ==========================================
     client.on('messageDelete', async (delMsg) => {
-        // SM Aktif değilse, mesaj kendine aitse veya içeriği okunamıyorsa boşver
         if (!smActive || delMsg.author?.id === client.user.id || !delMsg.content) return;
 
         try {
             const log = `> 🗑️ **[SİLİNEN MESAJ YAKALANDI]**\n> 👤 **Kişi:** \`${delMsg.author.username}\`\n> 📍 **Kanal:** <#${delMsg.channel.id}>\n> 📝 **Mesaj:** ${delMsg.content}`;
             
-            // Kendi DM kutuna (Notlar kısmına) mesajı gönderir
-            await client.user.send(log).catch(()=>{});
+            // Kullanıcının kendi (Saved Messages) kanalına garantili mesaj atma
+            const user = await client.users.fetch(client.user.id);
+            if (user) await user.send(log);
         } catch(e) { }
     });
 
@@ -183,27 +182,29 @@ accounts.forEach((acc) => {
     // ==========================================
     client.on('messageCreate', async (msg) => {
 
+        // AFK yanıtlayıcı (Sen hariç birisi etiketlerse çalışır)
         if (msg.author.id !== client.user.id && isAfk) {
             if (msg.mentions.has(client.user.id)) {
                 msg.reply(`> 💤 **Şu an AFK'yım:** \`${afkReason}\``).catch(() => {});
             }
         }
 
+        // Kendi komutların
         if (msg.author.id === client.user.id) {
             
-            if (isAfk && !msg.content.toLowerCase().startsWith('.afk')) {
-                isAfk = false;
-                msg.reply("> 🟢 **AFK Modu Kapatıldı:** Tekrar hoş geldin!").catch(() => {});
-            }
-
             const cmd = msg.content.toLowerCase().trim();
             const args = msg.content.split(' ');
 
-            // 💤 .afk [sebep]
+            // 💤 .afk [sebep] veya .afk off
             if (cmd.startsWith('.afk')) {
-                let reason = msg.content.substring(4).trim() || "Bilgisayar başında değilim.";
-                isAfk = true; afkReason = reason;
-                msg.edit(`> 💤 **AFK Modu Aktif Edildi**\n> 📝 **Sebep:** \`${reason}\`\n> 🔔 Biri beni etiketlediğinde otomatik cevap verilecek.`).catch(()=>{});
+                if (args[1] === 'off') {
+                    isAfk = false;
+                    msg.edit("> 🟢 **AFK Modu Kapatıldı:** Tekrar hoş geldin kanka!").catch(()=>{});
+                } else {
+                    let reason = msg.content.substring(4).trim() || "Bilgisayar başında değilim.";
+                    isAfk = true; afkReason = reason;
+                    msg.edit(`> 💤 **AFK Modu Aktif Edildi**\n> 📝 **Sebep:** \`${reason}\`\n> 🔒 *(Sen .afk off yazana kadar mesaj atsan bile bozulmayacak)*`).catch(()=>{});
+                }
             }
 
             // 🖼️ .avatar
@@ -216,7 +217,7 @@ accounts.forEach((acc) => {
                 msg.edit(`> 🖼️ **${target.username}** adlı kişinin avatarı:\n> ${url}`).catch(()=>{});
             }
 
-            // 🕵️‍♂️ .sm aktif / .sm kapalı (Gölge İspiyoncu)
+            // 🕵️‍♂️ .sm aktif / .sm kapalı
             else if (cmd.startsWith('.sm')) {
                 let state = args[1] ? args[1].toLowerCase() : '';
                 
@@ -231,7 +232,7 @@ accounts.forEach((acc) => {
                 }
             }
             
-            // 🧹 .sil [sayı] (Kendi attığın mesajları süpürür)
+            // 🧹 .sil [sayı]
             else if (cmd.startsWith('.sil')) {
                 let amount = parseInt(args[1]) || 5; 
                 msg.edit(`> 🧹 Son ${amount} mesajım siliniyor...`).catch(()=>{});
