@@ -5,7 +5,7 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => { res.send('✅ Luas Hub Sabit AFK & Özel Kanal İspiyoncu Aktif!'); });
+app.get('/', (req, res) => { res.send('✅ Luas Hub AFK, Silici, Ping & Ghost Dedektifi Aktif!'); });
 app.listen(PORT, () => { console.log(`🌐 Web sunucusu ${PORT} portunda ayakta!`); });
 
 const accounts = [
@@ -24,9 +24,11 @@ accounts.forEach((acc) => {
     const client = new Client({ checkUpdate: false });
     const streamer = new Streamer(client);
 
+    // HAFIZA DEĞİŞKENLERİ
     let isAfk = false;
     let afkReason = "";
-    let smActive = false;
+    let ghostActive = false; // Ghost Ping Dedektifi (Kapalı başlar)
+    const GHOST_LOG_CHANNEL_ID = "1532169420439421069"; // Senin belirlediğin log kanalı
 
     client.on('ready', async () => {
         console.log(`✅ [${acc.name}] Aktif! Giriş yapılan: ${client.user.username}`);
@@ -163,24 +165,22 @@ accounts.forEach((acc) => {
     });
 
     // ==========================================
-    // 🕵️‍♂️ GÖLGE İSPİYONCU (ÖZEL KANALA LOGLAMA)
+    // 👻 GHOST PING DEDEKTİFİ
     // ==========================================
     client.on('messageDelete', async (delMsg) => {
-        // SM aktif değilse, mesaj sana aitse veya içeriği yoksa boşver
-        if (!smActive || delMsg.author?.id === client.user.id || !delMsg.content) return;
+        // Ghost aktif değilse, mesaj kendine aitse veya içeriği okunamıyorsa boşver
+        if (!ghostActive || delMsg.author?.id === client.user.id || !delMsg.content) return;
 
-        // Sadece belirttiğin kaynak kanalı (1347305969469624400) dinler
-        if (delMsg.channel.id !== "1347305969469624400") return;
-
-        try {
-            const log = `> 🗑️ **[SİLİNEN MESAJ]**\n> 👤 **Kişi:** \`${delMsg.author.username}\`\n> 📝 **Mesaj:** ${delMsg.content}`;
-            
-            // Belirttiğin sunucudaki hedef log kanalına (1532169420439421069) fırlatır
-            const logChannel = client.channels.cache.get("1532169420439421069");
-            if (logChannel) {
-                await logChannel.send(log).catch(()=>{});
-            }
-        } catch(e) { }
+        // EĞER SİLİNEN MESAJDA SEN ETİKETLİYSEN (GHOST PING YEDİYSEN)
+        if (delMsg.mentions.has(client.user.id)) {
+            try {
+                const logChannel = client.channels.cache.get(GHOST_LOG_CHANNEL_ID);
+                if (logChannel) {
+                    const log = `> 👻 **[GHOST PING YAKALANDI]**\n> 👤 **Kaçak:** \`${delMsg.author.username}\`\n> 📍 **Atılan Kanal:** <#${delMsg.channel.id}>\n> 📝 **Sildiği Mesaj:** ${delMsg.content}`;
+                    await logChannel.send(log).catch(()=>{});
+                }
+            } catch(e) { }
+        }
     });
 
     // ==========================================
@@ -188,29 +188,27 @@ accounts.forEach((acc) => {
     // ==========================================
     client.on('messageCreate', async (msg) => {
 
-        // AFK yanıtlayıcı (Sen hariç birisi etiketlerse çalışır)
         if (msg.author.id !== client.user.id && isAfk) {
             if (msg.mentions.has(client.user.id)) {
                 msg.reply(`> 💤 **Şu an AFK'yım:** \`${afkReason}\``).catch(() => {});
             }
         }
 
-        // Kendi komutların
         if (msg.author.id === client.user.id) {
             
+            if (isAfk && !msg.content.toLowerCase().startsWith('.afk')) {
+                isAfk = false;
+                msg.reply("> 🟢 **AFK Modu Kapatıldı:** Tekrar hoş geldin!").catch(() => {});
+            }
+
             const cmd = msg.content.toLowerCase().trim();
             const args = msg.content.split(' ');
 
-            // 💤 .afk [sebep] veya .afk off
+            // 💤 .afk [sebep]
             if (cmd.startsWith('.afk')) {
-                if (args[1] === 'off') {
-                    isAfk = false;
-                    msg.edit("> 🟢 **AFK Modu Kapatıldı:** Tekrar hoş geldin kanka!").catch(()=>{});
-                } else {
-                    let reason = msg.content.substring(4).trim() || "Bilgisayar başında değilim.";
-                    isAfk = true; afkReason = reason;
-                    msg.edit(`> 💤 **AFK Modu Aktif Edildi**\n> 📝 **Sebep:** \`${reason}\`\n> 🔒 *(Sen .afk off yazana kadar mesaj atsan bile bozulmayacak)*`).catch(()=>{});
-                }
+                let reason = msg.content.substring(4).trim() || "Bilgisayar başında değilim.";
+                isAfk = true; afkReason = reason;
+                msg.edit(`> 💤 **AFK Modu Aktif Edildi**\n> 📝 **Sebep:** \`${reason}\`\n> 🔔 Biri beni etiketlediğinde otomatik cevap verilecek.`).catch(()=>{});
             }
 
             // 🖼️ .avatar
@@ -223,19 +221,24 @@ accounts.forEach((acc) => {
                 msg.edit(`> 🖼️ **${target.username}** adlı kişinin avatarı:\n> ${url}`).catch(()=>{});
             }
 
-            // 🕵️‍♂️ .sm aktif / .sm kapalı
-            else if (cmd.startsWith('.sm')) {
+            // 👻 .ghost on / .ghost off
+            else if (cmd.startsWith('.ghost')) {
                 let state = args[1] ? args[1].toLowerCase() : '';
                 
-                if (state === 'aktif') {
-                    smActive = true;
-                    msg.edit(`> 🕵️‍♂️ **Gölge İspiyoncu (SM) Aktif:** Belirlenen kanalda silinen mesajlar anında log kanalına düşecek!`).catch(()=>{});
-                } else if (state === 'kapalı') {
-                    smActive = false;
-                    msg.edit(`> 🛑 **Gölge İspiyoncu (SM) Kapatıldı.** Artık silinen mesajlar izlenmiyor.`).catch(()=>{});
+                if (state === 'on') {
+                    ghostActive = true;
+                    msg.edit(`> 👻 **Ghost Ping Dedektifi Aktif:** Artık biri sana etiket atıp silerse, anında log kanalına fişlenecek!`).catch(()=>{});
+                } else if (state === 'off') {
+                    ghostActive = false;
+                    msg.edit(`> 🛑 **Ghost Ping Dedektifi Kapatıldı.**`).catch(()=>{});
                 } else {
-                    msg.edit(`> ⚠️ **Hatalı Kullanım:** Lütfen \`.sm aktif\` veya \`.sm kapalı\` yaz.`).catch(()=>{});
+                    msg.edit(`> ⚠️ **Hatalı Kullanım:** Lütfen \`.ghost on\` veya \`.ghost off\` yaz.`).catch(()=>{});
                 }
+            }
+
+            // 🏓 .ping
+            else if (cmd === '.ping') {
+                msg.edit(`> 🏓 **Pong!**\n> 📡 **API Gecikmesi:** \`${client.ws.ping}ms\``).catch(()=>{});
             }
             
             // 🧹 .sil [sayı]
